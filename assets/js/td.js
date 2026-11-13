@@ -190,7 +190,7 @@
       for (const s of g.states()) { const q = L.q(s); Vm[s] = Math.max(...q); if (L.ep && Math.max(...q) > Math.min(...q)) pol[s] = L.greedy(s); }
       const sc = Math.max(2, ...Array.from(Vm, Math.abs));
       const path = roll ? roll.path.slice(0, rollK + 1) : last ? last.path : null;
-      V.draw({ V: L.ep ? Vm : null, scale: sc, policy: L.ep ? pol : null, path, pathAlpha: roll ? 0.85 : 0.3, agent: path ? path[path.length - 1] : g.s0, jitter: !roll });
+      V.draw({ V: L.ep && $('#rw-vals').checked ? Vm : null, scale: sc, policy: L.ep ? pol : null, path, pathAlpha: roll ? 0.85 : 0.3, agent: path ? path[path.length - 1] : g.s0, jitter: !roll });
       UL.chart(C, [{ data: L.curve, color: '#c9c9c4', w: 1 }, { data: UL.smooth(L.curve, 15), color: '#2a78d6' }], { xmax: 400, xlabel: 'episode' });
       const r = L.ep >= 400 ? greedyRun() : null;
       UL.stats('rw-stats', [{ k: 'episodes trained', v: L.ep }, { k: 'ε now', v: L.eps.toFixed(2) },
@@ -211,6 +211,7 @@
     const show = UL.loop((dt) => { acc += dt * 5; while (acc > 1) { acc--; rollK++; } draw(); if (rollK >= roll.path.length - 1) { foot.innerHTML = explain(roll); return false; } });
     $('#rw-train').addEventListener('click', (e) => { if (loop.on) { loop.stop(); e.target.textContent = 'Continue'; return; } if (L.ep >= 400) build(); roll = null; acc = 0; loop.start(); e.target.textContent = 'Pause'; foot.innerHTML = 'Training… (ε falls from 1 to 0.05, so it explores a lot at first)'; });
     $('#rw-show').addEventListener('click', () => { roll = greedyRun(); rollK = 0; acc = 0; foot.innerHTML = 'Following the learned (greedy) policy from the start…'; show.start(); });
+    $('#rw-vals').addEventListener('change', () => draw());
     build(); draw(); foot.innerHTML = 'Press <b>Train</b>.';
   })();
 

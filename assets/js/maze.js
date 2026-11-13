@@ -160,10 +160,11 @@
     let g, V, L, last, small, big;
     const mk = (key, seed) => new Learner(UL.grid('twoCheese'), 'q', Object.assign({ alpha: 0.5, gamma: 0.9, episodes: E, seed }, SCHED[key]));
     const greedyGoal = (L) => { const gg = L.g; let s = gg.s0; for (let t = 0; t < 40; t++) { const o = gg.step(s, L.greedy(s)); s = o.s2; if (o.done) return o.r; } return 0; };
+    $('#st-vals').addEventListener('change', () => draw());
     function reset() { g = UL.grid('twoCheese'); $('#st-grid').innerHTML = ''; V = new GridView('#st-grid', g, { cell: 84 }); L = mk(mode.value, 17); L.g = g; last = null; small = 0; big = 0; loop.stop(); $('#st-play').textContent = 'Train'; draw(); }
     function draw() {
       const Vmax = new Float64Array(g.N), pol = {}; for (const s of g.states()) { const q = L.q(s); Vmax[s] = Math.max(...q); if (L.ep && Math.max(...q) > Math.min(...q)) pol[s] = L.greedy(s); }
-      V.draw({ V: Vmax, vPos: true, vmax: 12, vNums: true, policy: L.ep ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
+      const sv = $('#st-vals').checked; V.draw({ V: sv ? Vmax : null, vPos: true, vmax: 12, vNums: sv, policy: L.ep ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
       UL.chart(C, [{ data: L.curve, color: '#2a78d6', dots: true, r: 2.2 }], { xmax: E, ymin: 0, ymax: 10.5, xlabel: 'episode', ny: 2 });
       const goal = L.ep ? greedyGoal(L) : null;
       UL.stats('st-stats', [{ k: 'episode', v: L.ep }, { k: 'ε now', v: L.eps.toFixed(2) }, { k: 'small reward reached', v: small }, { k: 'big reward reached', v: big },
@@ -193,11 +194,11 @@
   /* ------------------------------------------------ 10. Monte Carlo control */
   (function () {
     const g = grid('small'), V = new GridView('#mc-grid', g, { cell: 100 }), C = new Plot('#mc-curve', { w: 440, h: 230, pad: { l: 40, r: 10, t: 12, b: 32 } });
-    let L, last; const sp = UL.range('mc-speed'), arrows = $('#mc-arrows'), nums = $('#mc-nums');
+    let L, last; const sp = UL.range('mc-speed'), arrows = $('#mc-arrows'), nums = $('#mc-nums'), vals = $('#mc-vals');
     function reset() { L = new Learner(g, 'mc', { alpha: 0.1, gamma: 0.8, episodes: 300, seed: 21 }); last = null; draw(); }
     function draw() {
       const pol = {}; if (arrows.checked && L.ep > 0) for (const s of g.states()) pol[s] = L.greedy(s);
-      V.draw({ Q: L.Q, qNums: nums.checked, scale: 5, policy: arrows.checked && L.ep > 0 ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
+      V.draw({ Q: vals.checked || nums.checked ? L.Q : null, qNums: nums.checked, scale: 5, policy: arrows.checked && L.ep > 0 ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
       const cv = L.curve, sm = UL.smooth(cv, 10);
       const best = -(g.shortest() - 1); UL.chart(C, [{ data: cv, color: '#c9c9c4', w: 1 }, { data: sm, color: '#c0392b' }], { xmax: 300, ymin: -g.cap - 1, ymax: 0, hline: best, hlabel: `best possible ${fmt(best, 0)}`, xlabel: 'episode', ylabel: 'total reward' });
       const l50 = cv.slice(-50), avg = l50.length ? l50.reduce((a, b) => a + b, 0) / l50.length : NaN;
@@ -207,7 +208,7 @@
     $('#mc-play').addEventListener('click', (e) => { if (loop.on) { loop.stop(); e.target.textContent = 'Train'; } else { if (L.ep >= 300) reset(); loop.start(); e.target.textContent = 'Pause'; } });
     $('#mc-one').addEventListener('click', () => { if (L.ep < 300) { last = L.episode(); draw(); } });
     $('#mc-reset').addEventListener('click', () => { loop.stop(); $('#mc-play').textContent = 'Train'; reset(); });
-    [arrows, nums].forEach((x) => x.addEventListener('change', draw));
+    [arrows, nums, vals].forEach((x) => x.addEventListener('change', draw));
     V.p.cv.addEventListener('click', (e) => { const k = V.cellAt(e); if (k < 0) return; g.toggleWall(k); if (!isFinite(g.shortest())) { g.toggleWall(k); return; } loop.stop(); $('#mc-play').textContent = 'Train'; reset(); });
     redraws.push(draw); reset();
   })();

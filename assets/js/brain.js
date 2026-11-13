@@ -113,7 +113,7 @@
     let table, path, start, asks;
     function reset() { table = new Map(); path = null; start = g.s0; asks = 0; foot.innerHTML = 'Start by recording an expert run.'; draw(); }
     function draw() {
-      const fill = {}; table.forEach((_, s) => { fill[s] = 'rgba(42,120,214,.16)'; });
+      const fill = {}; table.forEach((_, s) => { fill[s] = 'rgba(42,120,214,.38)'; });
       const pol = {}; table.forEach((a, s) => { pol[s] = a; });
       V.draw({ cellFill: fill, policy: pol, policyColor: 'rgba(42,120,214,.6)', path, pathColor: '#c0392b', agent: path ? path[path.length - 1] : start, ghost: start });
       UL.stats('bc-stats', [{ k: 'states with an example', v: `${table.size} <small>of ${g.states().length - 1}</small>` }, { k: 'expert labels asked (DAgger)', v: asks }]);

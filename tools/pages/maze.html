@@ -137,7 +137,7 @@
       <p>Why not simply set ε = 0 and always take the best action? Because "best" only means <em>best among what the agent has tried</em>. If it stops exploring too early, it locks onto the first thing that worked and never finds out that something far better exists.</p>
       <p>A new maze shows it. There are now <strong>two</strong> goals: a small one (+1) just two steps from the start, and a big one (+10) at the far end. Every step costs 0 and γ = 0.9, so the big reward is clearly better: worth about \(10 \times 0.9^5 \approx 5.9\) from the start, against \(1 \times 0.9 = 0.9\) for the small one. The learner is Q-learning; only the exploration schedule changes.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Will the agent find the big reward?</p><p class="lab-hint">Pick an exploration schedule and train for 300 episodes. Arrows: the greedy policy. Blue: the best value in each square.</p></div>
+        <div class="lab-head"><p class="lab-title">Will the agent find the big reward?</p><p class="lab-hint">Pick an exploration schedule and train for 300 episodes. Arrows: the greedy policy. Tick <i>values</i> to see what the agent thinks each square is worth.</p></div>
         <div class="controls">
           <div class="seg" id="st-mode">
             <button data-v="greedy">ε = 0 (always greedy)</button>
@@ -149,6 +149,7 @@
         <div class="controls">
           <button class="btn" id="st-play">Train</button><button class="btn ghost small" id="st-reset">Reset</button>
           <label class="ctl">speed <input type="range" id="st-speed" min="1" max="60" value="15"><output></output></label>
+          <label class="check"><input type="checkbox" id="st-vals"> values</label>
         </div>
         <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="st-grid"></div></div><div><div class="stats" id="st-stats"></div><div class="plot" id="st-curve"></div><p class="plot-cap"><b>Reward per episode</b>: +1 = small reward, +10 = big reward</p></div></div></div>
         <div class="lab-foot" id="st-foot"></div>
@@ -174,6 +175,7 @@
           <button class="btn" id="mc-play">Train</button><button class="btn ghost" id="mc-one">One episode</button><button class="btn ghost small" id="mc-reset">Reset</button>
           <label class="ctl">speed <input type="range" id="mc-speed" min="1" max="60" value="8"><output></output></label>
           <label class="check"><input type="checkbox" id="mc-arrows" checked> greedy arrows</label>
+          <label class="check"><input type="checkbox" id="mc-vals"> values</label>
           <label class="check"><input type="checkbox" id="mc-nums"> numbers</label>
         </div>
         <div class="lab-body"><div class="lab-grid"><div class="plot" id="mc-grid"></div><div><div class="stats" id="mc-stats"></div><div class="plot" id="mc-curve"></div><p class="plot-cap"><b>Total reward per episode</b> (grey) and the average of the last 10 (red)</p></div></div></div>
