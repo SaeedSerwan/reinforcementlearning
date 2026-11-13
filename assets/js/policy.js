@@ -86,8 +86,8 @@
     function reset() { L = new ActorCritic(g, { seed: 4 }); draw(); }
     function draw() {
       const probs = {}; for (const s of g.states()) probs[s] = L.pi(s);
-      A.draw({ probs }); B.draw({ V: L.V, vNums: true, vmin: -4.5 });
-      UL.chart(C, [{ data: L.curve, color: '#c9c9c4', w: 1 }, { data: UL.smooth(L.curve, 10), color: '#c0392b' }], { xmax: 350, ymin: -26, ymax: 0, hline: -7, xlabel: 'episode' });
+      A.draw({ probs }); B.draw({ V: L.V, vNums: true, vmin: -5 });
+      UL.chart(C, [{ data: L.curve, color: '#c9c9c4', w: 1 }, { data: UL.smooth(L.curve, 10), color: '#c0392b' }], { xmax: 350, ymin: -g.cap - 1, ymax: 0, hline: -(g.shortest() - 1), xlabel: 'episode' });
     }
     let acc = 0; const loop = UL.loop((dt) => { acc += dt * sp.v; let k = 0; while (acc > 1 && L.ep < 350) { acc--; L.episode(); k++; } if (k) draw(); if (L.ep >= 350) { $('#ac-play').textContent = 'Train'; return false; } });
     $('#ac-play').addEventListener('click', (e) => { if (loop.on) { loop.stop(); e.target.textContent = 'Train'; } else { if (L.ep >= 350) reset(); loop.start(); e.target.textContent = 'Pause'; } });
@@ -112,7 +112,7 @@
     }
     function draw(res) {
       if (!res) { C.clear(); C.textPx('press "Run" to compare', C.W / 2, C.H / 2, { color: '#a3a3a0', font: '13px "IBM Plex Sans"' }); return; }
-      UL.chart(C, F.map(([k, , c]) => ({ data: UL.smooth(res[k], 10), color: c })), { xmax: 300, ymin: -26, ymax: 0, hline: -7, hlabel: 'best possible −7', xlabel: 'episode', ylabel: 'total reward (average of 20 runs)' });
+      UL.chart(C, F.map(([k, , c]) => ({ data: UL.smooth(res[k], 10), color: c })), { xmax: 300, ymin: -41, ymax: 0, hline: -(UL.grid('small').shortest() - 1), hlabel: `best possible −${UL.grid('small').shortest() - 1}`, xlabel: 'episode', ylabel: 'total reward (average of 20 runs)' });
       UL.stats('fm-stats', F.map(([k, n]) => ({ k: `${n}: last 50`, v: fmt(res[k].slice(-50).reduce((a, b) => a + b, 0) / 50, 2) })));
     }
     $('#fm-run').addEventListener('click', () => {

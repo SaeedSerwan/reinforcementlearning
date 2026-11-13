@@ -11,7 +11,7 @@
   /* ------------------------------------------------ 1. the task */
   (function () {
     const g = grid('small'), V = new GridView('#task-grid', g, { cell: 84 });
-    const path = [[1, 1], [1, 2], [1, 3], [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4]].map(([c, r]) => g.key(c, r));
+    const path = [[1, 1], [2, 1], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [4, 5], [5, 5], [6, 5], [7, 5]].map(([c, r]) => g.key(c, r));
     const draw = () => V.draw({ path, agent: g.s0, coords: true }); UL.gridLegend('#task-legend', ['start', 'agent', 'goal', 'wall', 'path']);
     redraws.push(draw); draw();
   })();
@@ -45,13 +45,13 @@
     function stats() { UL.stats('rnd-stats', [{ k: 'episodes sampled', v: n }, { k: 'reached the goal', v: n ? `${succ} <small>(${((100 * succ) / n).toFixed(1)}%)</small>` : '–' }]); }
     function drawHist() {
       if (!hist) { H.clear(); H.textPx('sample episodes to fill the histogram', H.W / 2, H.H / 2, { color: '#a3a3a0', font: '12px "IBM Plex Sans"' }); return; }
-      const keys = Array.from({ length: 19 }, (_, i) => -25 + i);
-      UL.bars(H, keys.map((k) => ({ v: hist[k] || 0, label: k % 3 === 0 ? fmt(k, 0) : '', color: k === -25 ? '#c9c9c4' : '#2a78d6' })), { values: false, ymin: 0 });
+      const best = -(g.shortest() - 1), keys = Array.from({ length: g.cap + best + 1 }, (_, i) => -g.cap + i);
+      UL.bars(H, keys.map((k) => ({ v: hist[k] || 0, label: k % 5 === 0 ? fmt(k, 0) : '', color: k === -g.cap ? '#c9c9c4' : '#2a78d6' })), { values: false, ymin: 0 });
     }
     function episode() { let s = g.s0, ret = 0; const p = [s]; for (let t = 0; t < g.cap; t++) { const o = g.step(s, r.int(4)); ret += o.r; s = o.s2; p.push(s); if (o.done) return { p, ret, ok: true }; } return { p, ret, ok: false }; }
     $('#rnd-one').addEventListener('click', () => {
       clearInterval(timer); const e = episode(); let i = 1; path = [e.p[0]];
-      timer = setInterval(() => { path = e.p.slice(0, ++i); draw(); if (i >= e.p.length) { clearInterval(timer); draw(null, e.ok ? `reached the goal: ${fmt(e.ret, 0)}` : `cut off at 25 steps: ${fmt(e.ret, 0)}`); n++; succ += e.ok; stats(); } }, 160);
+      timer = setInterval(() => { path = e.p.slice(0, ++i); draw(); if (i >= e.p.length) { clearInterval(timer); draw(null, e.ok ? `reached the goal: ${fmt(e.ret, 0)}` : `cut off at ${g.cap} steps: ${fmt(e.ret, 0)}`); n++; succ += e.ok; stats(); } }, 160);
     });
     $('#rnd-many').addEventListener('click', () => {
       clearInterval(timer); hist = hist || {}; let lucky = null;
@@ -109,7 +109,7 @@
     function next() { if (k === 0) return; k--; const x = steps[k], old = Q[x.s * 4 + x.a]; Q[x.s * 4 + x.a] = old + 0.1 * (G[k] - old); last = { ...x, old, G: G[k], nw: Q[x.s * 4 + x.a], t: k }; draw(); }
     function draw() {
       V.draw({ Q, qNums: true, scale: 1, hiQ: last ? [last.s, last.a] : null });
-      if (!last) { calc.innerHTML = `<span class="k">table</span><span>all 72 entries are 0</span><span class="k">next</span><span>t = ${steps.length - 1}, the last step</span>`; return; }
+      if (!last) { calc.innerHTML = `<span class="k">table</span><span>all ${(g.states().length - 1) * 4} entries are 0</span><span class="k">next</span><span>t = ${steps.length - 1}, the last step</span>`; return; }
       const [c, r] = g.cr(last.s);
       calc.innerHTML = `<span class="k">step</span><span>t = ${last.t}: (${c},${r}), ${UL.ACTS[last.a]}</span><span class="k">return G</span><span>${fmt(last.G)}</span><span class="k">old Q</span><span>${fmt(last.old, 3)}</span><span class="k">update</span><span>${fmt(last.old, 3)} + 0.1 × (${fmt(last.G)} − ${last.old < 0 ? '(' + fmt(last.old, 3) + ')' : fmt(last.old, 3)})</span><span class="k">new Q</span><span class="hl">${fmt(last.nw, 3)}</span>`;
     }

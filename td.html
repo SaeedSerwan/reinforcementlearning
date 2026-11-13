@@ -121,13 +121,13 @@
         \text{Q-learning:}&\quad \text{target} = R + \gamma \max_{a'} Q(S',a')
       \end{aligned} \]</div>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">One experience, three updates</p><p class="lab-hint">The agent is in (5,2) and moves up: R = −1, it lands in (5,3). Edit the four values of (5,3) and see how each method reacts.</p></div>
+        <div class="lab-head"><p class="lab-title">One experience, three updates</p><p class="lab-hint">The agent is in (3,2) of the small maze and moves up: R = −1, it lands in (3,3). Edit the four values of (3,3) and see how each method reacts.</p></div>
         <div class="controls">
           <label class="ctl">Q(S,A) <input class="num" type="number" step="0.1" id="x3-q" value="-2"></label>
-          <label class="ctl">Q(S′,↑) <input class="num" type="number" step="0.1" id="x3-up" value="-1.6"></label>
+          <label class="ctl">Q(S′,↑) <input class="num" type="number" step="0.1" id="x3-up" value="-1.2"></label>
           <label class="ctl">Q(S′,↓) <input class="num" type="number" step="0.1" id="x3-down" value="-2.3"></label>
           <label class="ctl">Q(S′,←) <input class="num" type="number" step="0.1" id="x3-left" value="-1.9"></label>
-          <label class="ctl">Q(S′,→) <input class="num" type="number" step="0.1" id="x3-right" value="-1.2"></label>
+          <label class="ctl">Q(S′,→) <input class="num" type="number" step="0.1" id="x3-right" value="-1.6"></label>
         </div>
         <div class="controls">
           <label class="ctl">ε <input type="range" id="x3-eps" min="0" max="1" step="0.05" value="0.3"><output></output></label>
@@ -160,7 +160,7 @@
       <h2><span class="chap">05</span>Sample efficiency: the race</h2>
       <p><strong>Sample efficiency</strong> is how many episodes (or steps) a method needs to become good. All four methods run with the same ε schedule (0.9 → 0.1), γ = 0.8 and α = 0.1, averaged over many runs.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Monte Carlo, SARSA, Expected SARSA, Q-learning</p><p class="lab-hint">Pick a maze. The big one needs 19 moves; episodes stop at 60 steps.</p></div>
+        <div class="lab-head"><p class="lab-title">Monte Carlo, SARSA, Expected SARSA, Q-learning</p><p class="lab-hint">Pick a maze. The big one needs 20 moves; episodes stop at 60 steps.</p></div>
         <div class="controls">
           <div class="seg" id="rc-maze"><button data-v="small" class="on">Small maze (300 episodes)</button><button data-v="big">Big maze (600 episodes)</button></div>
           <label class="check"><input type="checkbox" id="rc-head"> give Monte Carlo a head start (50 guided episodes)</label>

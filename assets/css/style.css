@@ -370,11 +370,9 @@ kbd { font: .78rem var(--mono); border: 1px solid var(--line-2); border-bottom-w
 .grid-legend .lg { display: inline-flex; align-items: center; gap: .4rem; }
 .grid-legend .sw { width: 16px; height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font: 700 .7rem var(--font); position: relative; }
 .grid-legend .sw i { position: absolute; left: 5px; top: 3px; width: 0; height: 10px; border-left: 2px solid; }
-.grid-legend .sw.dot { width: 13px; height: 13px; border-radius: 50%; background: #16181d; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.25); }
+.grid-legend .sw.dot { width: 14px; height: 14px; border-radius: 50%; background: #1d2a44; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(20,30,50,.3); }
+.grid-legend .sw.coin { width: 13px; height: 13px; border-radius: 50%; background: #e5a82e; box-shadow: inset 0 0 0 2px rgba(255,255,255,.6); }
 .grid-legend .sw.line { height: 3px; border-radius: 2px; background: #2a78d6; width: 18px; }
-.grid-legend img.sw { width: 18px; height: 18px; border-radius: 0; image-rendering: pixelated; object-fit: cover; }
-.grid-legend img.sw.fit { object-fit: contain; }
-.grid-legend .sw .spr-l { height: 10px; image-rendering: pixelated; }
 .takeaway { border-left: 3px solid var(--ink); padding: .15rem 0 .15rem 1rem; margin: 1.4rem 0 .4rem; font-size: 1.02rem; color: var(--ink); max-width: 760px; }
 .takeaway b { font-weight: 600; }
 .cards.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }

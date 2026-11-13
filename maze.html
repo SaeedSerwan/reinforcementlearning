@@ -76,7 +76,7 @@
 
     <section id="task" class="chapter">
       <h2><span class="chap">01</span>The task</h2>
-      <p>Six columns, four rows and an L-shaped wall. The agent starts in the bottom-left corner and must reach the goal in the top-right corner. It can move up, down, left or right; a move into a wall or off the grid leaves it where it is. An episode ends at the goal or after 25 steps. Notice the dead-end pocket next to the start: walking right first is a trap.</p>
+      <p>A real maze: seven columns, five rows, corridors one square wide. The agent starts in the bottom-left corner and must reach the goal in the top-right corner. It can move up, down, left or right; a move into a wall or off the grid leaves it where it is. An episode ends at the goal or after 40 steps. Two routes lead to the goal: a short one up the middle corridor and along the top, and a longer one through the bottom-right corridor. The left column is a dead end.</p>
       <div class="plot" id="task-grid" style="max-width:520px;margin-top:1.2rem"></div>
       <div class="grid-legend" id="task-legend"></div>
       <div class="table-wrap"><table class="clean">
@@ -85,10 +85,10 @@
           <tr><td><strong>State</strong></td><td>Two numbers: the coordinates (column, row)</td></tr>
           <tr><td><strong>Action</strong></td><td>One number 0–3: up, down, left, right</td></tr>
           <tr><td><strong>Reward</strong></td><td>0 for entering the goal square, −1 for every other step</td></tr>
-          <tr><td><strong>Episode</strong></td><td>Ends at the goal or after 25 steps</td></tr>
+          <tr><td><strong>Episode</strong></td><td>Ends at the goal or after 40 steps</td></tr>
         </tbody>
       </table></div>
-      <p>Why −1 per step? Because then the total reward is minus the number of steps used: maximising it means getting there as fast as possible. The shortest route is 8 moves (up the left edge, then along the top), so the best total is −7. Other choices of reward teach very different behaviour: see the <a href="td.html#reward">reward lab</a>.</p>
+      <p>Why −1 per step? Because then the total reward is minus the number of steps used: maximising it means getting there as fast as possible. The shortest route is 10 moves (right, up the middle corridor, then along the top), so the best total is −9. The long route takes 14 moves and scores −13: worse, but still far better than getting lost. Other choices of reward teach very different behaviour: see the <a href="td.html#reward">reward lab</a>.</p>
       <p class="takeaway"><b>Key idea:</b> the reward does not tell the agent <em>how</em> to solve the task, only <em>how well</em> it did. Whatever we reward is what it will learn.</p>
     </section>
 
@@ -122,7 +122,7 @@
 
     <section id="returns" class="chapter">
       <h2><span class="chap">04</span>One lucky trajectory, and its returns</h2>
-      <p>Here is a lucky random episode: it bumps into the edge twice, but its last step enters the goal. Compute the return of every step with \(\gamma = 0.8\), <strong>backwards</strong>: \(G_t = R_{t+1} + \gamma\,G_{t+1}\).</p>
+      <p>Here is a lucky random episode: it walks into walls three times and wastes moves, but its last step enters the goal. Compute the return of every step with \(\gamma = 0.8\), <strong>backwards</strong>: \(G_t = R_{t+1} + \gamma\,G_{t+1}\).</p>
       <div class="lab">
         <div class="lab-head"><p class="lab-title">Returns, step by step</p><p class="lab-hint">Each row needs only its own reward and the row below it.</p></div>
         <div class="controls">
@@ -131,7 +131,7 @@
         </div>
         <div class="lab-body"><div class="lab-grid"><div class="plot" id="lk-grid"></div><div class="table-wrap" style="margin:0"><table class="clean mono" id="lk-table"></table></div></div></div>
       </div>
-      <div class="callout"><span class="label">Look closely</span><p>Even this <em>successful</em> episode has only negative returns: every reward but the last is −1. "Good" is relative: about −4 is good when a failed episode, wandering for 25 steps, is worth about −5.</p></div>
+      <div class="callout"><span class="label">Look closely</span><p>Even this <em>successful</em> episode has only negative returns: every reward but the last is −1. "Good" is relative: about −4.7 is good when a failed episode, wandering for 40 steps, is worth about −5.</p></div>
       <p class="takeaway"><b>Key idea:</b> compute returns backwards: each step only needs its own reward and the return of the step after it.</p>
     </section>
 
@@ -166,7 +166,7 @@
 
     <section id="qtable" class="chapter">
       <h2><span class="chap">07</span>Evaluation by averaging: the Q-table</h2>
-      <p>The simplest way to estimate Q: keep one entry per square and action (18 open squares × 4 actions = 72 numbers, all zero at the start) and, for every new return, move the entry a small step towards it:</p>
+      <p>The simplest way to estimate Q: keep one entry per square and action (23 open squares × 4 actions = 92 numbers, all zero at the start) and, for every new return, move the entry a small step towards it:</p>
       <div class="formula">\[ Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha\,\big(G_t - Q(S_t, A_t)\big) \]</div>
       <p>Each square is drawn as four triangles, one per action. Darker red = more negative. Apply the lucky episode, one entry at a time.</p>
       <div class="lab">
@@ -248,9 +248,9 @@
       <h2><span class="chap">11</span>A problem: who deserves the credit?</h2>
       <p>Monte Carlo judges whole episodes. In a good episode <em>every</em> action is rated up, including the wasted moves; in a bad episode every action is rated down, including the good ones. It can only hope that many episodes average this out.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Exercise: one table update</p><p class="lab-hint">Trajectory: (5,2) down → (5,1) up → (5,2) up → (5,3) right → (6,3) up → goal. γ = 0.9, α = 0.2.</p></div>
+        <div class="lab-head"><p class="lab-title">Exercise: one table update</p><p class="lab-hint">Trajectory: (7,2) down → (7,1) up → (7,2) up → (7,3) up → (7,4) up → goal. γ = 0.9, α = 0.2.</p></div>
         <div class="lab-body">
-          <p style="margin:0 0 .6rem">The entry Q((5,2), down) is −1.2. That first move went <em>away</em> from the goal. What is its new value after this episode?</p>
+          <p style="margin:0 0 .6rem">The entry Q((7,2), down) is −1.2. That first move went <em>away</em> from the goal. What is its new value after this episode?</p>
           <div class="btn-row" id="cr-opts"><button class="btn ghost" data-v="0">−0.752</button><button class="btn ghost" data-v="1">−1.648</button><button class="btn ghost" data-v="2">−3.439</button><button class="btn ghost" data-v="3">−1.2 (unchanged)</button></div>
           <p class="reveal" id="cr-why" hidden></p>
         </div>

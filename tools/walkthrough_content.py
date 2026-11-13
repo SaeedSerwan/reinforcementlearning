@@ -78,10 +78,11 @@ States are `(column, row)` with row 1 at the bottom. Actions: 0 up, 1 down, 2 le
         done = reached or self.t >= self.max_steps  # >> The episode ends at the target or at the time limit.
         return self.state, reward, done  # >> Exactly what the agent receives.
 
-small = Maze(6, 4, walls=[(2, 3), (3, 3), (4, 3), (4, 2), (4, 1)], start=(1, 1), target=(6, 4), max_steps=25)  # >> The small maze: an L-shaped wall, shortest route 8 moves.
-big = Maze(10, 7, walls=[(2, 2), (2, 4), (2, 5), (2, 6), (3, 2), (3, 4), (4, 4), (4, 6), (4, 7), (5, 1), (5, 2), (5, 4),  # >> The big maze: shortest route 19 moves.
-                         (6, 5), (6, 6), (7, 2), (7, 3), (7, 4), (7, 6), (8, 4), (8, 6), (9, 1), (9, 2), (10, 4)],  # >>^
-           start=(1, 1), target=(10, 7), max_steps=60)  # >>^
+small = Maze(7, 5, walls=[(2, 4), (4, 4), (5, 4), (6, 4), (2, 3), (6, 3), (1, 2), (2, 2), (4, 2), (6, 2), (4, 1)],  # >> The small maze: corridors one square wide, shortest route 10 moves.
+             start=(1, 1), target=(7, 5), max_steps=40)  # >>^
+big = Maze(11, 7, walls=[(10, 7), (2, 6), (3, 6), (4, 6), (6, 6), (7, 6), (8, 6), (10, 6), (2, 5), (6, 5), (8, 5), (1, 4), (2, 4), (4, 4),  # >> The big maze: shortest route 20 moves.
+                         (5, 4), (6, 4), (8, 4), (10, 4), (8, 3), (2, 2), (3, 2), (4, 2), (6, 2), (8, 2), (9, 2), (10, 2), (2, 1)],  # >>^
+           start=(1, 1), target=(11, 7), max_steps=60)  # >>^
 print("small maze:", small.width, "x", small.height, " big maze:", big.width, "x", big.height)  # >> A quick check."""),
 
         ("md", """## 3. Random actions and trajectories
@@ -103,10 +104,10 @@ totals = [sum(r for _, _, r in ep) for ep in episodes]  # >> The total reward of
 reached = sum(1 for ep in episodes if ep[-1][2] == 0)  # >> Episodes that ended at the goal (reward 0 on the last step).
 print(f"reached the goal in {reached} of 2000 episodes ({reached / 20:.1f}%)")  # >> Only a few percent: luck.
 
-plt.hist(totals, bins=np.arange(-25.5, 0, 1), color="#2a78d6")  # >> How the total rewards are spread.
+plt.hist(totals, bins=np.arange(-40.5, 0, 1), color="#2a78d6")  # >> How the total rewards are spread.
 plt.xlabel("total reward of the episode"); plt.ylabel("episodes")  # >> Axis labels.
 plt.title("2,000 random episodes on the small maze")  # >>^
-plt.show()  # >> Most episodes are cut off at −25."""),
+plt.show()  # >> Most episodes are cut off at −40."""),
 
         ("md", """## 4. Returns, computed backwards
 
@@ -183,11 +184,11 @@ mc = average_curve(monte_carlo, small)  # >> 50 runs of Monte Carlo.
 ql = average_curve(q_learning, small)  # >> 50 runs of Q-learning.
 plt.plot(smooth(mc), color="#c0392b", label="Monte Carlo")  # >> Red: Monte Carlo.
 plt.plot(smooth(ql), color="#2a78d6", label="Q-learning")  # >> Blue: Q-learning.
-plt.axhline(-7, ls="--", color="grey", lw=1, label="best possible (−7)")  # >> 8 moves: seven −1 and one 0.
+plt.axhline(-9, ls="--", color="grey", lw=1, label="best possible (−9)")  # >> 10 moves: nine −1 and one 0.
 plt.xlabel("episode"); plt.ylabel("total reward (average of 50 runs)"); plt.legend()  # >>^
 plt.title("Small maze")  # >>^
 plt.show()  # >>^
-print(f"last 50 episodes: Monte Carlo {mc[-50:].mean():.2f}, Q-learning {ql[-50:].mean():.2f}")  # >> Q-learning is already close to the best (−7); Monte Carlo lags behind. The big maze makes the gap dramatic."""),
+print(f"last 50 episodes: Monte Carlo {mc[-50:].mean():.2f}, Q-learning {ql[-50:].mean():.2f}")  # >> On the small maze both end up close to the best (−9). The big maze shows the real difference."""),
 
         ("md", """## 8. What did it learn?
 
@@ -196,9 +197,9 @@ Draw the maze and, in every square, the action with the highest Q: the **greedy 
     fig, ax = plt.subplots(figsize=(env.width * 0.9, env.height * 0.9))  # >> One inch per square, roughly.
     for (c, r), q in Q.items():  # >> Visit every square.
         if (c, r) in env.walls:  # >> Walls: dark squares.
-            ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#3b414b")); continue  # >>^
+            ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#262d3b")); continue  # >>^
         if (c, r) == env.target:  # >> The goal square.
-            ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#fff2c2")); continue  # >>^
+            ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#d9f0e2")); continue  # >>^
         dc, dr = Maze.MOVES[int(q.argmax())]  # >> The direction of the best action.
         ax.arrow(c - 0.25 * dc, r - 0.25 * dr, 0.4 * dc, 0.4 * dr, head_width=0.15, color="#2a78d6", length_includes_head=True)  # >>^
     ax.set_xlim(0.5, env.width + 0.5); ax.set_ylim(0.5, env.height + 0.5); ax.set_aspect("equal")  # >> Square cells.
@@ -206,17 +207,17 @@ Draw the maze and, in every square, the action with the highest Q: the **greedy 
     ax.set_title(title); plt.show()  # >>^
 
 Q, _ = q_learning(small, seed=1)  # >> One run of Q-learning.
-plot_policy(small, Q, "Q-learning: greedy policy after 300 episodes")  # >> Follow the arrows from (1,1): up the left edge, then along the top to the goal.
-print("Q at the start square (up, down, left, right):", np.round(Q[(1, 1)], 2))  # >> The best value is about −3.95: seven steps of −1, discounted."""),
+plot_policy(small, Q, "Q-learning: greedy policy after 300 episodes")  # >> Follow the arrows from (1,1): right, up the middle corridor, then along the top to the goal.
+print("Q at the start square (up, down, left, right):", np.round(Q[(1, 1)], 2))  # >> The best value is about −4.3: nine steps of −1, discounted."""),
 
         ("md", """## 9. The big maze
 
-Shortest route 19 moves, episodes cut off at 60 steps. A random walk almost never reaches the goal, so Monte Carlo has nothing to learn from. Q-learning learns from every step."""),
+Shortest route 20 moves, episodes cut off at 60 steps. A random walk almost never reaches the goal, so Monte Carlo has nothing to learn from. Q-learning learns from every step."""),
         ("code", """mc_big = average_curve(monte_carlo, big, runs=20, episodes=600)  # >> 20 runs of 600 episodes each.
 ql_big = average_curve(q_learning, big, runs=20, episodes=600)  # >>^
 plt.plot(smooth(mc_big), color="#c0392b", label="Monte Carlo")  # >>^
 plt.plot(smooth(ql_big), color="#2a78d6", label="Q-learning")  # >>^
-plt.axhline(-18, ls="--", color="grey", lw=1, label="best possible (−18)")  # >>^
+plt.axhline(-19, ls="--", color="grey", lw=1, label="best possible (−19)")  # >>^
 plt.xlabel("episode"); plt.ylabel("total reward (average of 20 runs)"); plt.legend(); plt.title("Big maze")  # >>^
 plt.show()  # >> Monte Carlo stays at −60: it never reaches the target.
 Q_big, _ = q_learning(big, episodes=600, seed=3)  # >> One Q-learning run on the big maze…

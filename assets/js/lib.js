@@ -320,8 +320,8 @@
   }
   UL.Grid = Grid;
   UL.MAZES = {
-    small: { W: 6, H: 4, walls: [[2, 3], [3, 3], [4, 3], [4, 2], [4, 1]], start: [1, 1], target: [6, 4], cap: 25 },
-    big: { W: 10, H: 7, walls: [[2, 2], [2, 4], [2, 5], [2, 6], [3, 2], [3, 4], [4, 4], [4, 6], [4, 7], [5, 1], [5, 2], [5, 4], [6, 5], [6, 6], [7, 2], [7, 3], [7, 4], [7, 6], [8, 4], [8, 6], [9, 1], [9, 2], [10, 4]], start: [1, 1], target: [10, 7], cap: 60 },
+    small: { W: 7, H: 5, walls: [[2, 4], [4, 4], [5, 4], [6, 4], [2, 3], [6, 3], [1, 2], [2, 2], [4, 2], [6, 2], [4, 1]], start: [1, 1], target: [7, 5], cap: 40 },
+    big: { W: 11, H: 7, walls: [[10, 7], [2, 6], [3, 6], [4, 6], [6, 6], [7, 6], [8, 6], [10, 6], [2, 5], [6, 5], [8, 5], [1, 4], [2, 4], [4, 4], [5, 4], [6, 4], [8, 4], [10, 4], [8, 3], [2, 2], [3, 2], [4, 2], [6, 2], [8, 2], [9, 2], [10, 2], [2, 1]], start: [1, 1], target: [11, 7], cap: 60 },
     open6: { W: 6, H: 6, walls: [[2, 2], [3, 2], [4, 2], [4, 3], [4, 4], [2, 4], [2, 5]], start: [1, 1], target: [6, 6], cap: 60 },
     cliff: { W: 10, H: 4, cliff: Array.from({ length: 8 }, (_, i) => [i + 2, 1]), start: [1, 1], target: [10, 1], cap: 200 },
     twoCheese: { W: 6, H: 4, walls: [[3, 2], [3, 3]], start: [1, 3], target: [6, 4], goalR: 10, stepR: 0, extra: [{ at: [1, 1], r: 1 }], cap: 50 },
@@ -429,7 +429,7 @@
   };
 
   /* ---------------------------------------------------- drawing grids */
-  const GC = { line: '#e4e4df', frame: '#cfcfca', wall: '#2b313b', wall2: '#3a414d', start: '#f1f5fb', goal: '#e2f4ea', goalInk: '#138a5c', pit: '#fbe5e2', pitInk: '#c0392b', gold: '#fdf2d3', goldInk: '#a86f00', ink: '#16181d' };
+  const GC = { floor: '#f8f7f3', line: '#e6e4dc', heatLine: 'rgba(255,255,255,.9)', wall: '#262d3b', start: '#e7eefa', startInk: '#5d7bb0', goal: '#d9f0e2', goalInk: '#13865a', pit: '#fbe1dc', pitInk: '#c0392b', gold: '#fbefcf', goldInk: '#a86f00', coin: '#e5a82e', agent: '#1d2a44', ink: '#16181d' };
   UL.GC = GC;
   // diverging colour: negative → red, positive → blue, 0 → white
   UL.div = function (v, scale = 5) {
@@ -442,12 +442,6 @@
   UL.divInk = (v, scale = 5) => (Math.abs(v / scale) > 0.62 ? '#fff' : '#26282c');
   UL.heat = (v, vmin = -5) => UL.div(v, -vmin);       // kept for older calls (negative values)
   UL.heatPos = (v, vmax = 1) => UL.div(v, vmax);      // kept for older calls (positive values)
-  // sprites: Gymnasium's toy-text pixel art (MIT, Farama Foundation), plus a wall and a coin in the same palette
-  const SPR = {}; UL.SPR = SPR;
-  if (typeof Image !== 'undefined') {
-    const names = ['ground', 'wall', 'coin', 'agent', 'goal_flag', 'letter_s', 'letter_g', 'cliff_left', 'cliff_mid_a', 'cliff_mid_b', 'cliff_right']; let left = names.length;
-    names.forEach((n) => { const im = new Image(); im.onload = im.onerror = () => { if (--left === 0) document.dispatchEvent(new Event('ul-redraw')); }; im.src = `assets/img/gym/${n}.png`; SPR[n] = im; });
-  }
   class GridView {
     constructor(el, grid, o = {}) {
       this.g = grid; this.o = o;
@@ -464,40 +458,48 @@
       const at = { tl: [b.x + 5, b.y + 9, 'left'], br: [b.x + b.s - 5, b.y + b.s - 8, 'right'], bc: [b.cx, b.y + b.s - 9, 'center'], c: [b.cx, b.cy, 'center'], tc: [b.cx, b.y + 10, 'center'] }[pos];
       P.textPx(txt, at[0], at[1], { align: at[2], font: o.font || `${o.w || 500} ${o.size || (small ? 9.5 : 11)}px "IBM Plex Mono", monospace`, color: o.color || '#6b6b68', halo: o.halo });
     }
-    img(k, name, o = {}) { // draw a sprite into cell k: o.w = width as a fraction of the cell, o.dx/dy offsets in cells, o.part = [sx, sw] source slice
-      const im = SPR[name]; if (!im || !im.complete || !im.naturalWidth) return false;
-      const b = this.box(k), c = this.p.ctx; c.save(); c.imageSmoothingEnabled = false; if (o.alpha != null) c.globalAlpha = o.alpha;
-      if (o.full) { if (o.part) c.drawImage(im, o.part[0], 0, o.part[1], im.naturalHeight, b.x + (o.part[0] / im.naturalWidth) * b.s, b.y, (o.part[1] / im.naturalWidth) * b.s, b.s); else c.drawImage(im, b.x, b.y, b.s, b.s); c.restore(); return true; }
-      const w = b.s * (o.w || 0.5), h = w * im.naturalHeight / im.naturalWidth;
-      c.drawImage(im, Math.round(b.cx - w / 2 + (o.dx || 0) * b.s), Math.round(b.cy - h / 2 + (o.dy || 0) * b.s), Math.round(w), Math.round(h)); c.restore(); return true;
+    isWall(c, r) { return c < 1 || c > this.g.W || r < 1 || r > this.g.H || this.g.walls.has(this.g.key(c, r)); }
+    wallTile(k) { // walls merge with their neighbours and with the outer frame; only free corners are rounded
+      const [cc, rr] = this.g.cr(k), b = this.box(k), c = this.p.ctx, R = this.cs * 0.2, W = (dc, dr) => this.isWall(cc + dc, rr + dr);
+      const up = W(0, 1), dn = W(0, -1), lf = W(-1, 0), rt = W(1, 0);
+      const rad = [!up && !lf ? R : 0, !up && !rt ? R : 0, !dn && !rt ? R : 0, !dn && !lf ? R : 0];
+      c.fillStyle = GC.wall; c.beginPath(); if (c.roundRect) c.roundRect(b.x - 0.5, b.y - 0.5, b.s + 1, b.s + 1, rad); else c.rect(b.x - 0.5, b.y - 0.5, b.s + 1, b.s + 1); c.fill();
     }
-    ground(k) { if (!this.img(k, 'ground', { full: true })) this.fill(k, '#c4d89e'); }
-    cliffTile(k) { // pick left / middle / right edges from the neighbours, as in Gymnasium's CliffWalking
-      const g = this.g, [c, r] = g.cr(k), isH = (cc) => cc >= 1 && cc <= g.W && (g.cliff.has(g.key(cc, r)) || (g.extra.get(g.key(cc, r)) || 0) < 0);
-      const L = !isH(c - 1), R = !isH(c + 1);
-      if (L && R) { if (!this.img(k, 'cliff_left', { full: true, part: [0, 32] })) this.fill(k, '#a87c52'); this.img(k, 'cliff_right', { full: true, part: [32, 32] }); }
-      else if (!this.img(k, L ? 'cliff_left' : R ? 'cliff_right' : c % 2 ? 'cliff_mid_a' : 'cliff_mid_b', { full: true })) this.fill(k, '#a87c52');
+    flag(k, col = GC.goalInk, size = 1) {
+      const b = this.box(k), c = this.p.ctx, h = b.s * 0.44 * size, x = b.cx - h * 0.22, y = b.cy - h * 0.58;
+      c.save(); c.lineCap = 'round'; c.strokeStyle = GC.wall; c.lineWidth = Math.max(1.6, b.s * 0.035); c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + h); c.stroke();
+      c.fillStyle = col; c.beginPath(); c.moveTo(x + 1, y); c.lineTo(x + h * 0.66, y + h * 0.2); c.lineTo(x + 1, y + h * 0.42); c.closePath(); c.fill();
+      c.fillStyle = GC.wall; c.beginPath(); c.ellipse(x, y + h, h * 0.2, h * 0.06, 0, 0, 2 * Math.PI); c.globalAlpha = 0.25; c.fill(); c.restore();
     }
-    wallTile(k) { if (!this.img(k, 'wall', { full: true })) this.fill(k, '#4a464e'); }
-    flag(k, big = true) { if (!this.img(k, 'goal_flag', { w: big ? 0.36 : 0.26, dy: -0.04 })) this.fill(k, '#ca665c', this.cs * 0.35); }
-    letter(k, ch) { const b = this.box(k), im = SPR[ch === 'S' ? 'letter_s' : 'letter_g']; if (!im || !im.complete) return; const c = this.p.ctx, h = Math.max(10, Math.round(b.s * 0.2)), w = h * 0.6; c.save(); c.imageSmoothingEnabled = false; c.drawImage(im, Math.round(b.x + b.s * 0.1), Math.round(b.y + b.s * 0.08), Math.round(w), h); c.restore(); }
-    coin(k) { if (!this.img(k, 'coin', { w: 0.34, dy: -0.05 })) this.fill(k, '#e2b04a', this.cs * 0.35); }
+    hazard(k) { const b = this.box(k), c = this.p.ctx, h = b.s * 0.3; c.save(); c.fillStyle = GC.pitInk; c.lineJoin = 'round'; c.strokeStyle = GC.pitInk; c.lineWidth = h * 0.18; c.beginPath(); c.moveTo(b.cx, b.cy - h * 0.72); c.lineTo(b.cx + h * 0.7, b.cy + h * 0.48); c.lineTo(b.cx - h * 0.7, b.cy + h * 0.48); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.font = `700 ${Math.round(h * 0.72)}px "IBM Plex Sans", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', b.cx, b.cy + h * 0.1); c.restore(); }
+    coin(k) { const b = this.box(k), c = this.p.ctx, r = b.s * 0.15, y = b.cy - b.s * 0.06; c.save(); c.fillStyle = GC.coin; c.beginPath(); c.arc(b.cx, y, r, 0, 2 * Math.PI); c.fill(); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = Math.max(1.2, r * 0.18); c.beginPath(); c.arc(b.cx, y, r * 0.62, 0, 2 * Math.PI); c.stroke(); c.restore(); }
+    tag(k, txt, col) { const b = this.box(k); this.p.textPx(txt, b.x + 6, b.y + 10, { align: 'left', font: `600 ${b.s < 56 ? 8 : 9}px "IBM Plex Mono", monospace`, color: col }); }
     pill(k, txt, col) { // a small readable reward label at the bottom of a tile
       const b = this.box(k), c = this.p.ctx, fs = b.s < 56 ? 9 : 10.5; c.save(); c.font = `600 ${fs}px "IBM Plex Mono", monospace`; const w = c.measureText(txt).width + 8, h = fs + 5, X = b.cx - w / 2, Y = b.y + b.s - h - 3;
       c.fillStyle = 'rgba(255,255,255,.92)'; if (c.roundRect) { c.beginPath(); c.roundRect(X, Y, w, h, 3); c.fill(); } else c.fillRect(X, Y, w, h); c.fillStyle = col || '#383a46'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, b.cx, Y + h / 2 + 0.5); c.restore();
     }
-    agent(k, alpha = 1, dx = 0) { if (!this.img(k, 'agent', { w: 0.56, dx, alpha })) { const b = this.box(k), c = this.p.ctx; c.save(); c.globalAlpha = alpha; c.fillStyle = '#383a46'; c.beginPath(); c.arc(b.cx + dx * b.s, b.cy, b.s * 0.2, 0, 7); c.fill(); c.restore(); } }
+    agent(k, alpha = 1, dx = 0) { // a round token with two eyes
+      const b = this.box(k), c = this.p.ctx, r = Math.max(7, b.s * 0.24), x = b.cx + dx * b.s, y = b.cy;
+      c.save(); c.globalAlpha = alpha; c.shadowColor = 'rgba(20,30,50,.28)'; c.shadowBlur = r * 0.5; c.shadowOffsetY = r * 0.12;
+      c.fillStyle = GC.agent; c.beginPath(); c.arc(x, y, r, 0, 2 * Math.PI); c.fill(); c.shadowColor = 'transparent';
+      c.strokeStyle = '#fff'; c.lineWidth = Math.max(1.5, r * 0.14); c.stroke();
+      c.fillStyle = '#fff'; [-1, 1].forEach((sx) => { c.beginPath(); c.ellipse(x + sx * r * 0.34, y - r * 0.1, r * 0.17, r * 0.22, 0, 0, 2 * Math.PI); c.fill(); });
+      c.fillStyle = GC.agent; [-1, 1].forEach((sx) => { c.beginPath(); c.arc(x + sx * r * 0.34, y - r * 0.04, r * 0.09, 0, 2 * Math.PI); c.fill(); });
+      c.restore();
+    }
     draw(o = {}) {
       const g = this.g, P = this.p, c = P.ctx, cs = this.cs, dv = o.scale || (o.vmax || (o.vmin ? -o.vmin : 5));
-      P.clear(); c.fillStyle = '#fff'; c.fillRect(P.sx(0.5), P.sy(g.H + 0.5), cs * g.W, cs * g.H);
+      P.clear(); const X0 = P.sx(0.5), Y0 = P.sy(g.H + 0.5), BW = cs * g.W, BH = cs * g.H;
+      c.save(); c.beginPath(); if (c.roundRect) c.roundRect(X0, Y0, BW, BH, Math.min(10, cs * 0.18)); else c.rect(X0, Y0, BW, BH); c.clip();
+      c.fillStyle = GC.floor; c.fillRect(X0, Y0, BW, BH);
       const special = (k) => g.walls.has(k) || g.cliff.has(k) || k === g.goal || g.extra.has(k);
       const heat = !!(o.V || o.Q);
-      // backgrounds: Gymnasium ground tiles, or plain white under a value map
       for (let k = 0; k < g.N; k++) {
         if (g.walls.has(k)) continue;
-        if (g.cliff.has(k) || (g.extra.get(k) || 0) < 0) { this.cliffTile(k); continue; }
-        if (k === g.goal || g.extra.has(k)) { this.ground(k); continue; }
-        if (o.V) this.fill(k, UL.div(o.V[k], dv)); else if (!heat) this.ground(k);
+        if (g.cliff.has(k) || (g.extra.get(k) || 0) < 0) { this.fill(k, GC.pit); continue; }
+        if (k === g.goal) { this.fill(k, GC.goal); continue; }
+        if (g.extra.has(k)) { this.fill(k, GC.gold); continue; }
+        if (o.V) this.fill(k, UL.div(o.V[k], dv)); else if (k === g.s0 && !o.noStart && !heat) this.fill(k, GC.start);
         if (o.cellFill && o.cellFill[k]) this.fill(k, o.cellFill[k]);
       }
       // Q triangles
@@ -512,22 +514,21 @@
         }
         if (o.hiQ && o.hiQ[0] === k) { const a = o.hiQ[1]; c.beginPath(); c.moveTo(xm, ym); c.lineTo(...tri[a][0]); c.lineTo(...tri[a][1]); c.closePath(); c.strokeStyle = '#eda100'; c.lineWidth = 3; c.stroke(); }
       }
-      // grid lines only under a value map (the ground tiles carry their own edges)
-      if (heat) {
-        c.strokeStyle = GC.line; c.lineWidth = 1;
-        for (let i = 1; i < g.W; i++) { const X = Math.round(P.sx(i + 0.5)) + 0.5; c.beginPath(); c.moveTo(X, P.sy(g.H + 0.5)); c.lineTo(X, P.sy(0.5)); c.stroke(); }
-        for (let j = 1; j < g.H; j++) { const Y = Math.round(P.sy(j + 0.5)) + 0.5; c.beginPath(); c.moveTo(P.sx(0.5), Y); c.lineTo(P.sx(g.W + 0.5), Y); c.stroke(); }
-      }
+      // grid lines, then the walls on top
+      c.strokeStyle = heat ? GC.heatLine : GC.line; c.lineWidth = 1;
+      for (let i = 1; i < g.W; i++) { const X = Math.round(P.sx(i + 0.5)) + 0.5; c.beginPath(); c.moveTo(X, Y0); c.lineTo(X, Y0 + BH); c.stroke(); }
+      for (let j = 1; j < g.H; j++) { const Y = Math.round(P.sy(j + 0.5)) + 0.5; c.beginPath(); c.moveTo(X0, Y); c.lineTo(X0 + BW, Y); c.stroke(); }
       for (const k of g.walls) this.wallTile(k);
-      c.strokeStyle = heat ? GC.frame : '#acc282'; c.lineWidth = 1.5; c.strokeRect(P.sx(0.5) + 0.75, P.sy(g.H + 0.5) + 0.75, cs * g.W - 1.5, cs * g.H - 1.5);
+      c.restore();
+      c.strokeStyle = GC.wall; c.lineWidth = 3; c.beginPath(); if (c.roundRect) c.roundRect(X0 + 1.5, Y0 + 1.5, BW - 3, BH - 3, Math.min(9, cs * 0.16)); else c.rect(X0 + 1.5, Y0 + 1.5, BW - 3, BH - 3); c.stroke();
       // special tiles
       const rlab = (v) => (v > 0 ? '+' : '') + UL.fmt(v, Math.abs(v) < 10 && v % 1 ? 1 : 0);
-      if (cs >= 56) for (const k of g.cliff) this.pill(k, rlab(g.cliffR), GC.pitInk);
-      g.extra.forEach((v, k) => { if (v >= 0) this.flag(k, false); this.pill(k, rlab(v), v < 0 ? GC.pitInk : GC.goldInk); });
-      this.flag(g.goal, true); this.letter(g.goal, 'G'); if (g.extra.size || g.goalR !== 0) this.pill(g.goal, rlab(g.goalR), GC.goalInk);
+      for (const k of g.cliff) { this.hazard(k); if (cs >= 56) this.pill(k, rlab(g.cliffR), GC.pitInk); }
+      g.extra.forEach((v, k) => { if (v < 0) this.hazard(k); else this.flag(k, '#d08a10', 0.8); this.pill(k, rlab(v), v < 0 ? GC.pitInk : GC.goldInk); });
+      this.flag(g.goal); if (g.extra.size || g.goalR !== 0) this.pill(g.goal, rlab(g.goalR), GC.goalInk); else if (cs >= 48) this.tag(g.goal, 'GOAL', GC.goalInk);
       if (g.coins) g.coins.forEach((v, k) => { this.coin(k); this.pill(k, rlab(v), GC.goldInk); });
-      if (!o.noStart && !g.walls.has(g.s0)) this.letter(g.s0, 'S');
-      if (o.coords) for (const k of g.states()) { if (special(k)) continue; const [cc, rr] = g.cr(k); this.label(k, `${cc},${rr}`, 'br', { color: heat ? '#b1b1ac' : '#7f9a5c', size: 9 }); }
+      if (!o.noStart && !g.walls.has(g.s0) && cs >= 48) this.tag(g.s0, 'START', heat ? '#8a94a6' : GC.startInk);
+      if (o.coords) for (const k of g.states()) { if (special(k)) continue; const [cc, rr] = g.cr(k); this.label(k, `${cc},${rr}`, 'br', { color: '#b3b1a8', size: 9 }); }
       if (o.V && o.vNums) for (const k of g.states()) { if (special(k)) continue; const b = this.box(k); P.textPx(UL.fmt(o.V[k]), b.cx, b.cy + (o.policy ? cs * 0.33 : 0), { font: `500 ${cs < 60 ? 10 : o.policy ? 10.5 : 12}px "IBM Plex Mono", monospace`, color: UL.divInk(o.V[k], dv) }); }
       if (o.texts) o.texts.forEach(([k, s, col]) => { const b = this.box(k); P.textPx(s, b.cx, b.cy + cs * 0.3, { font: '500 11px "IBM Plex Mono", monospace', color: col || '#2a78d6', halo: true }); });
       if (o.trace) for (const k of g.states()) { const e = o.trace[k]; if (e > 0.005) { const b = this.box(k), h = Math.min(1, e / (o.traceMax || 2)) * cs * 0.62; c.fillStyle = '#eda100'; c.fillRect(b.x + cs * 0.08, b.y + cs * 0.9 - h, cs * 0.1, h); } }
@@ -541,7 +542,7 @@
       if (o.falls) o.falls.forEach((k) => { const [cc, rr] = g.cr(k); P.marker(cc, rr, { shape: 'x', r: 6, fill: GC.pitInk }); });
       if (o.hiCell != null) { const b = this.box(o.hiCell); c.strokeStyle = o.hiColor || '#2a78d6'; c.lineWidth = 3; c.strokeRect(b.x + 3, b.y + 3, cs - 6, cs - 6); }
       if (o.hiCells) o.hiCells.forEach((k) => { const b = this.box(k); c.strokeStyle = '#2a78d6'; c.lineWidth = 3; c.strokeRect(b.x + 3, b.y + 3, cs - 6, cs - 6); });
-      if (o.ghost != null) this.agent(o.ghost, 0.35);
+      if (o.ghost != null) this.agent(o.ghost, 0.28);
       if (o.agent != null) this.agent(o.agent, o.agentAlpha == null ? 1 : o.agentAlpha, o.agentDx || 0);
       if (o.msg) { c.save(); c.font = '600 14px "IBM Plex Sans", sans-serif'; const w = c.measureText(o.msg).width + 28; c.fillStyle = 'rgba(255,255,255,.94)'; c.strokeStyle = o.msgColor || GC.ink; c.lineWidth = 1.2; const X = P.W / 2 - w / 2, Y = P.H / 2 - 17; if (c.roundRect) { c.beginPath(); c.roundRect(X, Y, w, 34, 8); c.fill(); c.stroke(); } else { c.fillRect(X, Y, w, 34); } c.restore(); P.textPx(o.msg, P.W / 2, P.H / 2, { font: '600 14px "IBM Plex Sans", sans-serif', color: o.msgColor || GC.ink }); }
       return this;
@@ -550,8 +551,7 @@
   UL.GridView = GridView;
   // a small legend explaining the tiles
   UL.gridLegend = function (el, items = ['start', 'agent', 'goal', 'wall']) {
-    const im = (n, cls = '') => `<img class="sw spr ${cls}" src="assets/img/gym/${n}.png" alt="">`;
-    const sw = { start: `<span class="sw" style="background:#c4d89e"><img class="spr-l" src="assets/img/gym/letter_s.png" alt=""></span>start`, agent: `${im('agent', 'fit')}agent`, goal: `${im('goal_flag', 'fit')}goal`, wall: `${im('wall')}wall`, pit: `${im('cliff_mid_a')}hazard`, bonus: `${im('coin', 'fit')}bonus`, ground: `${im('ground')}open square`, path: `<span class="sw line"></span>path`, value: `<span class="sw" style="background:linear-gradient(90deg,${UL.div(-5)},#fff,${UL.div(5)})"></span>value: − … 0 … +` };
+    const sw = { start: `<span class="sw" style="background:${GC.start};box-shadow:inset 0 0 0 1px #cfdbef"></span>start`, agent: `<span class="sw dot"></span>agent`, goal: `<span class="sw" style="background:${GC.goal}"><i style="border-left-color:${GC.goalInk}"></i></span>goal`, wall: `<span class="sw" style="background:${GC.wall}"></span>wall`, pit: `<span class="sw" style="background:${GC.pit};color:${GC.pitInk}">!</span>hazard`, bonus: `<span class="sw coin"></span>bonus`, path: `<span class="sw line"></span>path`, value: `<span class="sw" style="background:linear-gradient(90deg,${UL.div(-5)},#fff,${UL.div(5)})"></span>value: − … 0 … +` };
     (typeof el === 'string' ? document.querySelector(el) : el).innerHTML = items.map((i) => `<span class="lg">${sw[i]}</span>`).join('');
   };
   UL.fmt = (v, d = 2) => (Math.abs(v) < 0.5 * 10 ** -d ? '0' : v.toFixed(d)).replace('-', '−');
