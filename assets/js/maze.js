@@ -8,6 +8,14 @@
   const redraws = [];
   document.addEventListener('ul-redraw', () => redraws.forEach((f) => f()));
 
+  /* ------------------------------------------------ 1. the task */
+  (function () {
+    const g = grid('small'), V = new GridView('#task-grid', g, { cell: 84 });
+    const path = [[1, 1], [1, 2], [1, 3], [1, 4], [2, 4], [3, 4], [4, 4], [5, 4], [6, 4]].map(([c, r]) => g.key(c, r));
+    const draw = () => V.draw({ path, agent: g.s0, coords: true }); UL.gridLegend('#task-legend', ['start', 'agent', 'goal', 'wall', 'path']);
+    redraws.push(draw); draw();
+  })();
+
   /* ------------------------------------------------ 2. world model */
   (function () {
     const g = grid('small'), V = new GridView('#wm-grid', g, { cell: 88 }), out = $('#wm-out');
@@ -29,21 +37,21 @@
     redraws.push(draw); draw();
   })();
 
-  /* ------------------------------------------------ 3. random rat */
+  /* ------------------------------------------------ 3. random agent */
   (function () {
     const g = grid('small'), V = new GridView('#rnd-grid', g, { cell: 88 }), H = new Plot('#rnd-hist', { w: 420, h: 200, pad: { l: 34, r: 10, t: 10, b: 30 } });
     const r = rng(11); let path = [g.s0], timer = null, hist = null, n = 0, succ = 0;
     function draw(agent, msg) { V.draw({ path, agent: agent != null ? agent : path[path.length - 1], jitter: true, msg }); }
-    function stats() { UL.stats('rnd-stats', [{ k: 'episodes sampled', v: n }, { k: 'reached the cheese', v: n ? `${succ} <small>(${((100 * succ) / n).toFixed(1)}%)</small>` : '–' }]); }
+    function stats() { UL.stats('rnd-stats', [{ k: 'episodes sampled', v: n }, { k: 'reached the goal', v: n ? `${succ} <small>(${((100 * succ) / n).toFixed(1)}%)</small>` : '–' }]); }
     function drawHist() {
       if (!hist) { H.clear(); H.textPx('sample episodes to fill the histogram', H.W / 2, H.H / 2, { color: '#a3a3a0', font: '12px "IBM Plex Sans"' }); return; }
-      const keys = Array.from({ length: 14 }, (_, i) => -20 + i);
-      UL.bars(H, keys.map((k) => ({ v: hist[k] || 0, label: k % 2 === 0 ? fmt(k, 0) : '', color: k === -20 ? '#c9c9c4' : '#2a78d6' })), { values: false, ymin: 0 });
+      const keys = Array.from({ length: 19 }, (_, i) => -25 + i);
+      UL.bars(H, keys.map((k) => ({ v: hist[k] || 0, label: k % 3 === 0 ? fmt(k, 0) : '', color: k === -25 ? '#c9c9c4' : '#2a78d6' })), { values: false, ymin: 0 });
     }
     function episode() { let s = g.s0, ret = 0; const p = [s]; for (let t = 0; t < g.cap; t++) { const o = g.step(s, r.int(4)); ret += o.r; s = o.s2; p.push(s); if (o.done) return { p, ret, ok: true }; } return { p, ret, ok: false }; }
     $('#rnd-one').addEventListener('click', () => {
       clearInterval(timer); const e = episode(); let i = 1; path = [e.p[0]];
-      timer = setInterval(() => { path = e.p.slice(0, ++i); draw(); if (i >= e.p.length) { clearInterval(timer); draw(null, e.ok ? `reached the cheese: ${fmt(e.ret, 0)}` : `cut off at 20 steps: ${fmt(e.ret, 0)}`); n++; succ += e.ok; stats(); } }, 160);
+      timer = setInterval(() => { path = e.p.slice(0, ++i); draw(); if (i >= e.p.length) { clearInterval(timer); draw(null, e.ok ? `reached the goal: ${fmt(e.ret, 0)}` : `cut off at 25 steps: ${fmt(e.ret, 0)}`); n++; succ += e.ok; stats(); } }, 160);
     });
     $('#rnd-many').addEventListener('click', () => {
       clearInterval(timer); hist = hist || {}; let lucky = null;
@@ -57,17 +65,17 @@
   /* ------------------------------------------------ 4. returns backwards */
   (function () {
     const g = grid('small'), V = new GridView('#lk-grid', g, { cell: 88 }), tbl = $('#lk-table'), st = $('#lk-status');
-    const steps = UL.LUCKY.map(([[c, r], a]) => { const s = g.key(c, r), o = g.step(s, a); return { s, a, r: o.r, s2: o.s2, bump: o.bump }; });
+    const steps = UL.lucky(g, 1);
     const G = []; let nx = 0; for (let i = steps.length - 1; i >= 0; i--) { G[i] = steps[i].r + 0.8 * nx; nx = G[i]; }
     let k = steps.length; // rows computed from index k
     function draw() {
       const cur = k < steps.length ? k : null;
-      V.draw({ path: [steps[0].s, ...steps.map((x) => x.s2)], bumps: steps.filter((x) => x.bump).map((x) => x.s), agent: cur != null ? steps[cur].s : UL.grid('small').s0, hiCell: cur != null ? steps[cur].s : null, jitter: false });
+      V.draw({ path: [steps[0].s, ...steps.map((x) => x.s2)], bumps: steps.filter((x) => x.bump).map((x) => x.s), agent: cur != null ? steps[cur].s : g.s0, hiCell: cur != null ? steps[cur].s : null, jitter: false, noStart: true });
       tbl.innerHTML = '<thead><tr><th>t</th><th>state</th><th>action</th><th>R</th><th>return G (γ = 0.8)</th></tr></thead><tbody>' + steps.map((x, i) => {
         const [c, r] = g.cr(x.s), done = i >= k, nxt = i + 1 < steps.length ? G[i + 1] : 0;
         return `<tr class="${i === cur ? 'on' : ''}"><td>${i}</td><td>(${c},${r})</td><td>${UL.ACTS[x.a]}${x.bump ? ' <span class="pill">bump</span>' : ''}</td><td>${fmt(x.r, 0)}</td><td>${done ? `${fmt(x.r, 0)} + 0.8 × ${nxt < 0 ? '(' + fmt(nxt) + ')' : fmt(nxt)} = <b>${fmt(G[i])}</b>` : ''}</td></tr>`;
       }).join('') + '</tbody>';
-      st.innerHTML = k === steps.length ? 'start at the <b>end</b>' : k === 0 ? 'done: <b>G₀ = −4.46</b>' : `computed t = ${k} … ${steps.length - 1}`;
+      st.innerHTML = k === steps.length ? 'start at the <b>end</b>' : k === 0 ? `done: <b>G₀ = ${fmt(G[0])}</b>` : `computed t = ${k} … ${steps.length - 1}`;
     }
     $('#lk-next').addEventListener('click', () => { if (k > 0) k--; draw(); });
     $('#lk-all').addEventListener('click', () => { k = 0; draw(); });
@@ -94,14 +102,14 @@
   /* ------------------------------------------------ 7. Q-table by averaging */
   (function () {
     const g = grid('small'), V = new GridView('#qt-grid', g, { cell: 100 }), calc = $('#qt-calc');
-    const steps = UL.LUCKY.map(([[c, r], a]) => { const s = g.key(c, r), o = g.step(s, a); return { s, a, r: o.r }; });
+    const steps = UL.lucky(g, 1);
     const G = []; let nx = 0; for (let i = steps.length - 1; i >= 0; i--) { G[i] = steps[i].r + 0.8 * nx; nx = G[i]; }
     let Q, k, last;
     function reset() { Q = new Float64Array(g.N * 4); k = steps.length; last = null; draw(); }
     function next() { if (k === 0) return; k--; const x = steps[k], old = Q[x.s * 4 + x.a]; Q[x.s * 4 + x.a] = old + 0.1 * (G[k] - old); last = { ...x, old, G: G[k], nw: Q[x.s * 4 + x.a], t: k }; draw(); }
     function draw() {
-      V.draw({ Q, qNums: true, vmin: -1, hiQ: last ? [last.s, last.a] : null });
-      if (!last) { calc.innerHTML = '<span class="k">table</span><span>all 48 entries are 0</span><span class="k">next</span><span>t = 10, the last step</span>'; return; }
+      V.draw({ Q, qNums: true, scale: 1, hiQ: last ? [last.s, last.a] : null });
+      if (!last) { calc.innerHTML = `<span class="k">table</span><span>all 72 entries are 0</span><span class="k">next</span><span>t = ${steps.length - 1}, the last step</span>`; return; }
       const [c, r] = g.cr(last.s);
       calc.innerHTML = `<span class="k">step</span><span>t = ${last.t}: (${c},${r}), ${UL.ACTS[last.a]}</span><span class="k">return G</span><span>${fmt(last.G)}</span><span class="k">old Q</span><span>${fmt(last.old, 3)}</span><span class="k">update</span><span>${fmt(last.old, 3)} + 0.1 × (${fmt(last.G)} − ${last.old < 0 ? '(' + fmt(last.old, 3) + ')' : fmt(last.old, 3)})</span><span class="k">new Q</span><span class="hl">${fmt(last.nw, 3)}</span>`;
     }
@@ -155,12 +163,12 @@
     function reset() { g = UL.grid('twoCheese'); $('#st-grid').innerHTML = ''; V = new GridView('#st-grid', g, { cell: 84 }); L = mk(mode.value, 17); L.g = g; last = null; small = 0; big = 0; loop.stop(); $('#st-play').textContent = 'Train'; draw(); }
     function draw() {
       const Vmax = new Float64Array(g.N), pol = {}; for (const s of g.states()) { const q = L.q(s); Vmax[s] = Math.max(...q); if (L.ep && Math.max(...q) > Math.min(...q)) pol[s] = L.greedy(s); }
-      V.draw({ V: Vmax, vPos: true, vmax: 14, vNums: true, policy: L.ep ? pol : null, policyColor: '#111', path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
+      V.draw({ V: Vmax, vPos: true, vmax: 12, vNums: true, policy: L.ep ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
       UL.chart(C, [{ data: L.curve, color: '#2a78d6', dots: true, r: 2.2 }], { xmax: E, ymin: 0, ymax: 10.5, xlabel: 'episode', ny: 2 });
       const goal = L.ep ? greedyGoal(L) : null;
-      UL.stats('st-stats', [{ k: 'episode', v: L.ep }, { k: 'ε now', v: L.eps.toFixed(2) }, { k: 'small cheese reached', v: small }, { k: 'big cheese reached', v: big },
+      UL.stats('st-stats', [{ k: 'episode', v: L.ep }, { k: 'ε now', v: L.eps.toFixed(2) }, { k: 'small reward reached', v: small }, { k: 'big reward reached', v: big },
         { k: 'greedy policy now goes to', v: goal == null ? '–' : goal === 10 ? '<span class="pos">big (+10)</span>' : goal === 1 ? '<span class="neg">small (+1)</span>' : 'nowhere yet', hi: true }]);
-      if (L.ep >= E) foot.innerHTML = goal === 10 ? `<b>Optimal.</b> Enough exploration: the agent found the big cheese (${big} times) and its greedy policy now goes there.` : big === 0 ? `<b>Settled for less.</b> The agent never once reached the big cheese. Its policy is deterministic, confident, and not optimal: it did not explore enough to find out what it was missing.` : `<b>Settled for less.</b> It reached the big cheese only ${big} time${big > 1 ? 's' : ''}, too rarely for the news to spread back to the start.`;
+      if (L.ep >= E) foot.innerHTML = goal === 10 ? `<b>Optimal.</b> Enough exploration: the agent found the big reward (${big} times) and its greedy policy now goes there.` : big === 0 ? `<b>Settled for less.</b> The agent never once reached the big reward. Its policy is deterministic, confident, and not optimal: it did not explore enough to find out what it was missing.` : `<b>Settled for less.</b> It reached the big reward only ${big} time${big > 1 ? 's' : ''}, too rarely for the news to spread back to the start.`;
       else foot.innerHTML = '';
     }
     let acc = 0; const loop = UL.loop((dt) => { acc += dt * sp.v; let n = 0; while (acc > 1 && L.ep < E) { acc -= 1; last = L.episode(); if (last.reached) { if (last.ret >= 10) big++; else small++; } n++; } if (n) draw(); if (L.ep >= E) { $('#st-play').textContent = 'Train'; return false; } });
@@ -189,9 +197,9 @@
     function reset() { L = new Learner(g, 'mc', { alpha: 0.1, gamma: 0.8, episodes: 300, seed: 21 }); last = null; draw(); }
     function draw() {
       const pol = {}; if (arrows.checked && L.ep > 0) for (const s of g.states()) pol[s] = L.greedy(s);
-      V.draw({ Q: L.Q, qNums: nums.checked, vmin: -5, policy: arrows.checked && L.ep > 0 ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
+      V.draw({ Q: L.Q, qNums: nums.checked, scale: 5, policy: arrows.checked && L.ep > 0 ? pol : null, path: last ? last.path : null, pathAlpha: 0.35, agent: last ? last.path[last.path.length - 1] : g.s0, jitter: true });
       const cv = L.curve, sm = UL.smooth(cv, 10);
-      UL.chart(C, [{ data: cv, color: '#c9c9c4', w: 1 }, { data: sm, color: '#c0392b' }], { xmax: 300, ymin: -21, ymax: 0, hline: -7, hlabel: 'best possible −7', xlabel: 'episode', ylabel: 'total reward' });
+      const best = -(g.shortest() - 1); UL.chart(C, [{ data: cv, color: '#c9c9c4', w: 1 }, { data: sm, color: '#c0392b' }], { xmax: 300, ymin: -g.cap - 1, ymax: 0, hline: best, hlabel: `best possible ${fmt(best, 0)}`, xlabel: 'episode', ylabel: 'total reward' });
       const l50 = cv.slice(-50), avg = l50.length ? l50.reduce((a, b) => a + b, 0) / l50.length : NaN;
       UL.stats('mc-stats', [{ k: 'episode', v: L.ep }, { k: 'ε now', v: L.eps.toFixed(2) }, { k: 'last episode', v: last ? fmt(last.ret, 0) : '–' }, { k: 'avg of last 50', v: isFinite(avg) ? fmt(avg, 1) : '–', hi: true }]);
     }
@@ -211,16 +219,16 @@
       $$('#cr-opts button').forEach((x) => { x.disabled = true; x.style.borderColor = x.dataset.v === '1' ? '#1baf7a' : ''; });
       if (b.dataset.v !== '1') b.style.borderColor = '#e34948';
       why.hidden = false;
-      why.innerHTML = 'Returns backwards: G₄ = 0, G₃ = −1, G₂ = −1.8, G₁ = −2.44, G₀ = −2.952. Update: −0.5 + 0.1 × (−2.952 + 0.5) = <b>−0.745</b>. The entry gets worse, which is right: the move was bad. But it is judged by the whole rest of the episode, three good moves included. Had they been bad, it would have been punished far more. Monte Carlo cannot tell them apart.';
+      why.innerHTML = 'Returns backwards with γ = 0.9: G₄ = 0, G₃ = −1, G₂ = −1.9, G₁ = −2.71, G₀ = −3.439. Update: −1.2 + 0.2 × (−3.439 + 1.2) = <b>−1.648</b>. The entry gets worse, which is right: the move was bad. But it is judged by the whole rest of the episode, three good moves included. Had they been bad, it would have been punished far more. Monte Carlo cannot tell them apart.';
     }));
   })();
 
   UL.quiz('quiz-box', [
     { q: 'What does it mean that the agent has a <em>world model</em>?', o: ['It can see the maze as a picture', 'It knows p(s′, r | s, a): what each action leads to', 'It has a Q-table', 'It uses ε-greedy'], a: 1, why: 'A world model predicts the next state and reward. Model-free methods learn without it, from sampled experience.' },
-    { q: 'Why is the reward −1 per step?', o: ['To punish walls', 'So that maximising the total reward means reaching the cheese as fast as possible', 'Because rewards must be negative', 'To make γ unnecessary'], a: 1, why: 'The total reward is minus the number of steps used.' },
-    { q: 'After the lucky episode, why do the actions that led to the cheese look worse than untried ones?', o: ['Because they were bad', 'Because every touched entry became negative while untried ones are still at the optimistic 0', 'Because α is too small', 'Because γ = 0.8'], a: 1, why: 'Zero is an optimistic starting guess in this maze; it sorts itself out as untried actions get tried.' },
+    { q: 'Why is the reward −1 per step?', o: ['To punish walls', 'So that maximising the total reward means reaching the goal as fast as possible', 'Because rewards must be negative', 'To make γ unnecessary'], a: 1, why: 'The total reward is minus the number of steps used.' },
+    { q: 'After the lucky episode, why do the actions that led to the goal look worse than untried ones?', o: ['Because they were bad', 'Because every touched entry became negative while untried ones are still at the optimistic 0', 'Because α is too small', 'Because γ = 0.8'], a: 1, why: 'Zero is an optimistic starting guess in this maze; it sorts itself out as untried actions get tried.' },
     { q: 'ε = 0.2, four actions. Probability of choosing the best action?', o: ['0.8', '0.85', '0.95', '0.2'], a: 1, why: '0.8 for the greedy choice plus 0.2/4 = 0.05 when the random choice happens to pick it.' },
-    { q: 'With ε = 0 in the two-cheese maze, the agent ends up always going to the small cheese. Why?', o: ['Q-learning cannot learn +10', 'It found the small cheese first and, never exploring, never discovered that the big one is better', 'γ is too small', 'The big cheese is unreachable'], a: 1, why: 'A greedy agent can only exploit what it has discovered. Too little exploration gives a confident, deterministic, but sub-optimal policy.' },
+    { q: 'With ε = 0 in the two-goal maze, the agent ends up always going to the small reward. Why?', o: ['Q-learning cannot learn +10', 'It found the small reward first and, never exploring, never discovered that the big one is better', 'γ is too small', 'The big reward is unreachable'], a: 1, why: 'A greedy agent can only exploit what it has discovered. Too little exploration gives a confident, deterministic, but sub-optimal policy.' },
     { q: 'What does Monte Carlo control need before it can update anything?', o: ['A world model', 'A complete episode', 'A neural network', 'The optimal policy'], a: 1, why: 'It needs the full return, so it must wait for the end of the episode. That is the weakness Part 4 attacks.' },
   ]);
   UL.start();

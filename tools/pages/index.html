@@ -55,13 +55,14 @@
       <p class="prose">For each system decide the agent, the environment, the actions and the state. Then reveal one sensible answer.</p>
       <div class="cards" id="ex1"></div>
       <div class="callout tip"><span class="label">Choose the framing</span><p>The boundary, and even the size of one action, is a choice. Closing your fist: one action, or five, one per finger? Choose the framing that gives the problem the clearest structure.</p></div>
+      <p class="takeaway"><b>Key idea:</b> the agent only chooses actions and receives states and rewards. Everything it cannot control is the environment.</p>
     </section>
 
     <section id="loop" class="chapter">
       <h2><span class="chap">03</span>The loop: state, action, reward</h2>
       <p>One more signal completes the picture: the <strong>reward</strong>, a single number after every action. Positive is good, negative is bad. It <em>evaluates</em> what was done; it never says what should have been done instead. The result is a sequence in discrete time steps:</p>
       <div class="formula">\[ S_0,\ A_0,\ R_1,\quad S_1,\ A_1,\ R_2,\quad S_2,\ A_2,\ R_3,\ \dots \]</div>
-      <p>This is a <strong>Markov decision process</strong> (MDP). If it ends, at the target or after a time limit, the sequence is called an <strong>episode</strong>. Below, <em>you</em> are the agent in the small maze of this course: −1 for every step, 0 for entering the cheese square, at most 20 steps.</p>
+      <p>This is a <strong>Markov decision process</strong> (MDP). If it ends, at the target or after a time limit, the sequence is called an <strong>episode</strong>. Below, <em>you</em> are the agent in the small maze used throughout this site: −1 for every step, 0 for entering the goal square, at most 25 steps.</p>
       <div class="lab">
         <div class="lab-head"><p class="lab-title">You are the agent</p><p class="lab-hint">Use the buttons or the arrow keys. Switch to the agent's view: that is all a learning program ever sees.</p></div>
         <div class="controls">
@@ -85,6 +86,7 @@
         <div class="lab-foot" id="me-foot"></div>
       </div>
       <div class="callout"><span class="label">Notation</span><p>The reward that follows action \(A_t\) is written \(R_{t+1}\): it arrives together with the next state. Some sources, including the video this course follows, write \(r_t\). Nothing changes except the index.</p></div>
+      <p class="takeaway"><b>Key idea:</b> learning happens inside this loop: act, observe the new state and the reward, adjust, repeat.</p>
     </section>
 
     <section id="markov" class="chapter">
@@ -100,6 +102,7 @@
         <div class="lab-foot" id="mk-foot"></div>
       </div>
       <p>The same reason explains why the pendulum of <a href="pendulum.html">Part 6</a> has four numbers in its state, not two. The MDP is not perfect: real situations are not always Markov, it uses one fixed time step, and squeezes all feedback into a single number. It is still the best framework we have, and nearly all of RL is built on it.</p>
+      <p class="takeaway"><b>Key idea:</b> if the current state contains everything that matters, the agent can forget the past.</p>
     </section>
 
     <section id="policy" class="chapter">
@@ -113,6 +116,7 @@
         </div>
         <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="pol-p"></div><p class="plot-cap"><b>π(a | s)</b>: the probabilities</p></div><div><div class="plot" id="pol-c"></div><p class="plot-cap"><b>What it actually did</b> in 100 tries</p></div></div></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> a policy is the agent's whole strategy: for every state, what to do (or how likely each action is).</p>
     </section>
 
     <section id="return" class="chapter">
@@ -133,6 +137,7 @@
         </div>
         <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean mono" id="ret-table"></table></div></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> the agent maximises the sum of future rewards, not the next reward. γ decides how much the far future counts.</p>
     </section>
 
     <section id="goal" class="chapter">
@@ -156,6 +161,6 @@
       <a class="next-card" href="maze.html">
         <span class="next-eyebrow">Start part 3</span>
         <span class="next-title">The maze and Monte Carlo →</span>
-        <span class="next-text">From meaningless numbers to a policy that finds the cheese.</span>
+        <span class="next-text">From meaningless numbers to a policy that finds the goal.</span>
       </a>
     </section>

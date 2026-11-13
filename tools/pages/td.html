@@ -24,6 +24,7 @@
         <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="mt-mc"></div><p class="plot-cap" id="mt-mc-cap"><b>Monte Carlo</b></p></div><div><div class="plot" id="mt-td"></div><p class="plot-cap" id="mt-td-cap"><b>Temporal difference</b></p></div></div></div>
       </div>
       <p>Neither is simply better. Monte Carlo uses the true outcome but must wait; TD learns at once but leans on estimates that may still be wrong (this is called <strong>bootstrapping</strong>). With long or never-ending episodes, waiting is the bigger problem.</p>
+      <p class="takeaway"><b>Key idea:</b> TD learning updates a guess from the next guess, so it can learn during the episode instead of after it.</p>
     </section>
 
     <section id="error" class="chapter">
@@ -34,21 +35,22 @@
       <div class="lab">
         <div class="lab-head"><p class="lab-title">TD error calculator</p><p class="lab-hint">Change the numbers.</p></div>
         <div class="controls">
-          <label class="ctl">V(S) <input class="num" type="number" step="0.1" id="te-v" value="-3"></label>
+          <label class="ctl">V(S) <input class="num" type="number" step="0.1" id="te-v" value="-2"></label>
           <label class="ctl">R <input class="num" type="number" step="0.5" id="te-r" value="-1"></label>
-          <label class="ctl">V(S′) <input class="num" type="number" step="0.1" id="te-v2" value="-1.5"></label>
-          <label class="ctl">γ <input class="num" type="number" step="0.05" id="te-g" value="0.8"></label>
+          <label class="ctl">V(S′) <input class="num" type="number" step="0.1" id="te-v2" value="-0.5"></label>
+          <label class="ctl">γ <input class="num" type="number" step="0.05" id="te-g" value="0.9"></label>
           <label class="ctl">α <input class="num" type="number" step="0.05" id="te-a" value="0.1"></label>
         </div>
         <div class="lab-body"><div id="te-out" class="calc"></div></div>
       </div>
-      <h3>Example: driving home</h3>
-      <p class="prose">A classic from Sutton &amp; Barto (Example 6.1). Each evening you predict your total travel time at several points. Monte Carlo waits until you are home (43 min) and moves every prediction towards 43. TD moves each prediction towards the <em>next</em> prediction, at once: the rain gets the blame for the rain, the truck for the truck.</p>
+      <h3>An everyday example: the bus to campus</h3>
+      <p class="prose">Every morning you predict how long the whole trip will take, and you update the prediction as things happen. Monte Carlo waits until you arrive and then corrects every prediction towards the real total. TD corrects each prediction towards the <em>next</em> one, immediately.</p>
       <div class="lab">
         <div class="controls"><div class="seg" id="dh-mode"><button data-v="mc" class="on">Monte Carlo</button><button data-v="td">Temporal difference</button></div></div>
         <div class="lab-body"><div class="plot" id="dh-plot"></div></div>
         <div class="lab-foot" id="dh-foot"></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> the TD error δ = R + γV(S′) − V(S) measures surprise. Positive: better than expected. Negative: worse.</p>
     </section>
 
     <section id="three" class="chapter">
@@ -61,21 +63,22 @@
         \text{Q-learning:}&\quad \text{target} = R + \gamma \max_{a'} Q(S',a')
       \end{aligned} \]</div>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">One experience, three updates</p><p class="lab-hint">The agent is in (2,3) and takes right: R = −1, lands in (3,3). Edit the row of (3,3).</p></div>
+        <div class="lab-head"><p class="lab-title">One experience, three updates</p><p class="lab-hint">The agent is in (5,2) and moves up: R = −1, it lands in (5,3). Edit the four values of (5,3) and see how each method reacts.</p></div>
         <div class="controls">
-          <label class="ctl">Q(S,A) <input class="num" type="number" step="0.1" id="x3-q" value="-3"></label>
-          <label class="ctl">Q(S′,↑) <input class="num" type="number" step="0.1" id="x3-up" value="-2.9"></label>
-          <label class="ctl">Q(S′,↓) <input class="num" type="number" step="0.1" id="x3-down" value="-2.6"></label>
-          <label class="ctl">Q(S′,←) <input class="num" type="number" step="0.1" id="x3-left" value="-3.2"></label>
-          <label class="ctl">Q(S′,→) <input class="num" type="number" step="0.1" id="x3-right" value="-2.4"></label>
+          <label class="ctl">Q(S,A) <input class="num" type="number" step="0.1" id="x3-q" value="-2"></label>
+          <label class="ctl">Q(S′,↑) <input class="num" type="number" step="0.1" id="x3-up" value="-1.6"></label>
+          <label class="ctl">Q(S′,↓) <input class="num" type="number" step="0.1" id="x3-down" value="-2.3"></label>
+          <label class="ctl">Q(S′,←) <input class="num" type="number" step="0.1" id="x3-left" value="-1.9"></label>
+          <label class="ctl">Q(S′,→) <input class="num" type="number" step="0.1" id="x3-right" value="-1.2"></label>
         </div>
         <div class="controls">
-          <label class="ctl">ε <input type="range" id="x3-eps" min="0" max="1" step="0.05" value="0.2"><output></output></label>
-          <label class="ctl">next action A′ actually chosen <select id="x3-a2"><option value="0">up</option><option value="1">down</option><option value="2" selected>left</option><option value="3">right</option></select></label>
+          <label class="ctl">ε <input type="range" id="x3-eps" min="0" max="1" step="0.05" value="0.3"><output></output></label>
+          <label class="ctl">next action A′ actually chosen <select id="x3-a2"><option value="0">up</option><option value="1" selected>down</option><option value="2">left</option><option value="3">right</option></select></label>
         </div>
         <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean mono" id="x3-table"></table></div></div>
         <div class="lab-foot">SARSA asks "how good was it, given what I actually did next?" Expected SARSA averages over what the policy might do. Q-learning assumes the best. With the same experience, one TD error can be positive and another negative.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> SARSA, Expected SARSA and Q-learning differ only in which value of the next square they trust.</p>
     </section>
 
     <section id="onoff" class="chapter">
@@ -92,21 +95,23 @@
         </div>
         <div class="lab-foot">Q-learning learns the shortest route, along the edge, and keeps falling off while it explores. SARSA learns the route that is safe for an agent that sometimes stumbles, and collects more reward while learning.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> on-policy methods learn what is safe for the agent as it actually behaves; off-policy methods learn the best possible behaviour.</p>
     </section>
 
     <section id="race" class="chapter">
       <h2><span class="chap">05</span>Sample efficiency: the race</h2>
       <p><strong>Sample efficiency</strong> is how many episodes (or steps) a method needs to become good. All four methods run with the same ε schedule (0.9 → 0.1), γ = 0.8 and α = 0.1, averaged over many runs.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Monte Carlo, SARSA, Expected SARSA, Q-learning</p><p class="lab-hint">Pick a maze. The big one needs 22 moves; episodes stop at 60 steps.</p></div>
+        <div class="lab-head"><p class="lab-title">Monte Carlo, SARSA, Expected SARSA, Q-learning</p><p class="lab-hint">Pick a maze. The big one needs 19 moves; episodes stop at 60 steps.</p></div>
         <div class="controls">
           <div class="seg" id="rc-maze"><button data-v="small" class="on">Small maze (300 episodes)</button><button data-v="big">Big maze (600 episodes)</button></div>
           <label class="check"><input type="checkbox" id="rc-head"> give Monte Carlo a head start (50 guided episodes)</label>
           <button class="btn" id="rc-run">Run 20 runs each</button>
         </div>
         <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="rc-curve"></div><div class="legend" id="rc-legend"></div></div><div><div class="plot" id="rc-grid"></div><div class="stats" id="rc-stats" style="margin-top:1rem"></div></div></div></div>
-        <div class="lab-foot" id="rc-foot">On the small maze TD is a bit faster. On the big maze the difference is total: a random walk almost never reaches the cheese within 60 steps, so Monte Carlo has nothing to learn from. TD learns from every step: squares the agent keeps returning to become worse than squares it rarely visits, which pushes it outwards until it finds the cheese.</div>
+        <div class="lab-foot" id="rc-foot">On the small maze TD is a bit faster. On the big maze the difference is total: a random walk almost never reaches the goal within 60 steps, so Monte Carlo has nothing to learn from. TD learns from every step: squares the agent keeps returning to become worse than squares it rarely visits, which pushes it outwards until it finds the goal.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> learning from every step instead of every episode is what makes TD far more sample-efficient on large mazes.</p>
     </section>
 
     <section id="qstep" class="chapter">
@@ -122,30 +127,72 @@
       <p>Q-learning is this equation turned into an update, with one sample in place of the expectation.</p>
     </section>
 
+    <section id="reward" class="chapter">
+      <h2><span class="chap">07</span>Reward design: you get what you reward</h2>
+      <p>Q-learning faithfully maximises whatever reward we give it. It does not know what we <em>meant</em>. The same algorithm, on the same grid, learns completely different behaviour when only the rewards change. The grid has a goal, a hazard two steps from the start and a bonus square next to the start.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The reward lab</p><p class="lab-hint">Pick a reward design (or set the numbers yourself), train, then watch what the agent learned to do.</p></div>
+        <div class="controls">
+          <div class="seg" id="rw-preset">
+            <button data-v="cost" class="on">A cost per move</button>
+            <button data-v="gamma1">Goal only, γ = 1</button>
+            <button data-v="gamma09">Goal only, γ = 0.9</button>
+            <button data-v="cheap">Failure is cheap</button>
+            <button data-v="alive">Paid to keep moving</button>
+            <button data-v="coin">A bonus that respawns</button>
+          </div>
+        </div>
+        <div class="controls">
+          <label class="ctl">each move <input type="range" id="rw-step" min="-2" max="1" step="0.1" value="-1"><output></output></label>
+          <label class="ctl">goal <input type="range" id="rw-goal" min="0" max="20" step="1" value="0"><output></output></label>
+          <label class="ctl">hazard <input type="range" id="rw-pit" min="-30" max="0" step="1" value="-20"><output></output></label>
+          <label class="ctl">bonus <input type="range" id="rw-coin" min="0" max="5" step="0.5" value="0"><output></output></label>
+          <label class="ctl">γ <input type="range" id="rw-gamma" min="0.5" max="1" step="0.01" value="0.95"><output></output></label>
+        </div>
+        <div class="controls"><button class="btn" id="rw-train">Train 400 episodes</button><button class="btn ghost" id="rw-show" disabled>Show the learned behaviour</button><span class="status" id="rw-status"></span></div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="rw-grid"></div><div class="grid-legend" id="rw-legend"></div></div><div><div class="stats" id="rw-stats"></div><div class="plot" id="rw-curve"></div><p class="plot-cap"><b>Total reward per episode</b> while learning</p></div></div></div>
+        <div class="lab-foot" id="rw-foot"></div>
+      </div>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th>Reward design</th><th>What the agent learns</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>−1 per move, hazard −20</td><td>the shortest safe route</td><td>every wasted move costs; the hazard costs more</td></tr>
+          <tr><td>+10 at the goal, nothing else, γ = 1</td><td>wanders, often never arrives</td><td>arriving late is worth exactly as much as arriving early</td></tr>
+          <tr><td>+10 at the goal, γ = 0.9</td><td>the shortest route again</td><td>discounting makes later rewards smaller: hurry</td></tr>
+          <tr><td>−1 per move, hazard only −3</td><td>walks straight into the hazard</td><td>ending the episode at −3 beats walking 11 moves at −1 each</td></tr>
+          <tr><td>+1 per move, +10 at the goal</td><td>avoids the goal for ever</td><td>reaching the goal ends the income</td></tr>
+          <tr><td>a +2 bonus that respawns</td><td>steps on and off the bonus for ever</td><td>it found a loop that pays more than finishing: <em>reward hacking</em></td></tr>
+        </tbody>
+      </table></div>
+      <p class="takeaway"><b>Key idea:</b> the agent optimises the reward you wrote, not the behaviour you meant. Designing the reward is part of designing the solution.</p>
+    </section>
+
     <section id="traces" class="chapter">
-      <h2><span class="chap">07</span>Eligibility traces: credit further back</h2>
+      <h2><span class="chap">08</span>Eligibility traces: credit further back</h2>
       <p>One-step TD passes news back one square per visit. An <strong>eligibility trace</strong> is a fading memory of recently visited squares: each visit adds 1, and every step all traces shrink by \(\gamma\lambda\). When a TD error arrives, <em>every</em> square is updated in proportion to its trace. λ = 0 gives back one-step TD.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Watch the trace</p><p class="lab-hint">Illustration: reward +1 only for reaching the cheese, 0 otherwise, so the only TD error comes at the end. α = 0.5, γ = 0.9.</p></div>
+        <div class="lab-head"><p class="lab-title">Watch the trace</p><p class="lab-hint">Illustration: reward +1 only for reaching the goal, 0 otherwise, so the only TD error comes at the end. α = 0.5, γ = 0.9.</p></div>
         <div class="controls"><label class="ctl">λ <input type="range" id="tr-l" min="0" max="1" step="0.05" value="0.9"><output></output></label><button class="btn" id="tr-step">Next step</button><button class="btn ghost" id="tr-ep">Finish episode</button><button class="btn ghost small" id="tr-reset">Reset</button></div>
         <div class="lab-body"><div class="lab-grid"><div class="plot" id="tr-grid"></div><div id="tr-calc" class="calc"></div></div></div>
         <div class="lab-foot">Orange bars: the trace e of each square. Blue: its value V. Traces change how fast credit spreads, not the final answer.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> eligibility traces let one TD error update a whole trail of recent squares at once.</p>
     </section>
 
     <section id="model" class="chapter">
-      <h2><span class="chap">08</span>For comparison: with a world model</h2>
+      <h2><span class="chap">09</span>For comparison: with a world model</h2>
       <p>Everything so far was model-free. If the agent <em>knows</em> where every action leads, it does not need to try anything: it can apply the Bellman optimality equation to every square again and again. This is <strong>value iteration</strong>. Edit the maze by clicking squares.</p>
       <div class="lab">
         <div class="lab-head"><p class="lab-title">Value iteration, sweep by sweep</p><p class="lab-hint">\(v(s) \leftarrow \max_a \big[r + \gamma\, v(s')\big]\), γ = 0.8</p></div>
         <div class="controls"><label class="ctl">sweeps <input type="range" id="vi-k" min="0" max="12" step="1" value="0"><output></output></label><div class="seg" id="vi-maze"><button data-v="small" class="on">Small maze</button><button data-v="big">Big maze</button></div></div>
-        <div class="lab-body"><div class="plot" id="vi-grid"></div></div>
+        <div class="lab-body"><div class="plot" id="vi-grid" style="max-width:600px;margin:0 auto"></div></div>
         <div class="lab-foot" id="vi-foot"></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> with a world model, no trial and error is needed: the values can be computed directly.</p>
     </section>
 
     <section id="quiz" class="chapter">
-      <h2><span class="chap">09</span>Check yourself</h2>
+      <h2><span class="chap">10</span>Check yourself</h2>
       <div class="quiz" id="quiz-box"></div>
       <p class="quiz-score" id="quiz-box-score"></p>
       <a class="next-card" href="policy.html">

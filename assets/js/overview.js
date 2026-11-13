@@ -42,7 +42,7 @@
 
   /* ----------------------------------------------- 3. you are the agent */
   (function () {
-    const g = grid('small'), view = new GridView('#me-grid', g, { cell: 96 });
+    const g = grid('small'), view = new GridView('#me-grid', g, { cell: 84 });
     const nums = $('#me-numbers'), stream = $('#me-stream'), foot = $('#me-foot');
     let s, t, total, done, log, path, bumps;
     const mode = UL.seg('me-view', render);
@@ -51,7 +51,7 @@
       if (done) return;
       const o = g.step(s, a); if (o.bump) bumps.push(s);
       log.push({ t, s, a, r: o.r }); total += o.r; t++; s = o.s2; path.push(s);
-      if (o.done) { done = true; foot.innerHTML = `<b>Reached the cheese</b> in ${t} steps. Total reward ${fmt(total, 0)}. The best possible is −7 (8 moves).`; }
+      if (o.done) { done = true; foot.innerHTML = `<b>Reached the goal</b> in ${t} steps. Total reward ${fmt(total, 0)}. The best possible is ${fmt(-(g.shortest() - 1), 0)} (${g.shortest()} moves).`; }
       else if (t >= g.cap) { done = true; foot.innerHTML = `<b>Cut off</b> after ${g.cap} steps: total reward ${fmt(total, 0)}.`; }
       else foot.innerHTML = o.bump ? 'Bumped into a wall or the edge: same state, still −1. That is all the agent learns about walls.' : '';
       render();

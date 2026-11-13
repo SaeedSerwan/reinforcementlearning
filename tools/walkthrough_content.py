@@ -29,7 +29,7 @@ QLEARNING = {
     "eyebrow": "Practice · Q-learning in Python",
     "title": "The maze and Q-learning, <em>line by line.</em>",
     "doc_title": "Monte Carlo and Q-learning on a Grid Maze in Python, Line by Line",
-    "lead": "A complete, runnable notebook that builds the small maze of the lecture as an environment, samples random episodes, computes returns, "
+    "lead": "A complete, runnable notebook that builds a small maze as an environment, samples random episodes, computes returns, "
             "and learns a Q-table with Monte Carlo and with Q-learning. Then both methods are compared on the big maze. "
             "Only NumPy and Matplotlib are needed. Hover over (or tap) any line of code to see what it does.",
     "learn": [
@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt  # >> Matplotlib's plotting interface, used for 
 
 An environment only needs two functions. `reset()` starts an episode and returns the first state. `step(action)` applies an action and returns **the next state, the reward, and whether the episode is over**. The agent will see nothing else.
 
-States are `(column, row)` with row 1 at the bottom, as in the lecture. Actions: 0 up, 1 down, 2 left, 3 right."""),
+States are `(column, row)` with row 1 at the bottom. Actions: 0 up, 1 down, 2 left, 3 right."""),
         ("code", """class Maze:  # >> A class bundles the maze's data (size, walls) with its two functions.
     MOVES = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}  # >> How each action changes (column, row): up, down, left, right.
 
@@ -62,30 +62,31 @@ States are `(column, row)` with row 1 at the bottom, as in the lecture. Actions:
         self.walls, self.start, self.target = set(walls), start, target  # >>^
         self.max_steps = max_steps  # >> Episodes are cut off after this many steps.
 
-    def reset(self):  # >> Start a new episode: put the rat on the start square.
+    def reset(self):  # >> Start a new episode: put the agent on the start square.
         self.state, self.t = self.start, 0  # >>^
         return self.state  # >>^
 
     def step(self, action):  # >> One time step of the MDP.
         dc, dr = self.MOVES[action]  # >> The change in column and row for this action.
-        nxt = (self.state[0] + dc, self.state[1] + dr)  # >> Where the rat would end up.
+        nxt = (self.state[0] + dc, self.state[1] + dr)  # >> Where the agent would end up.
         inside = 1 <= nxt[0] <= self.width and 1 <= nxt[1] <= self.height  # >> Still on the grid?
-        if inside and nxt not in self.walls:  # >> A move into a wall or off the grid leaves the rat where it is.
+        if inside and nxt not in self.walls:  # >> A move into a wall or off the grid leaves the agent where it is.
             self.state = nxt  # >>^
         self.t += 1  # >> Count the step.
-        reached = self.state == self.target  # >> Did we enter the cheese square?
+        reached = self.state == self.target  # >> Did we enter the goal square?
         reward = 0.0 if reached else -1.0  # >> 0 for reaching the target, −1 for every other step.
         done = reached or self.t >= self.max_steps  # >> The episode ends at the target or at the time limit.
         return self.state, reward, done  # >> Exactly what the agent receives.
 
-small = Maze(5, 3, walls=[(3, 1), (3, 2)], start=(1, 1), target=(5, 1), max_steps=20)  # >> The small maze of the lecture: one wall, shortest route 8 moves.
-big = Maze(9, 6, walls=[(3, 1), (3, 2), (3, 3), (3, 4), (5, 3), (5, 4), (5, 5), (5, 6),  # >> The big maze: three walls, shortest route 22 moves.
-                        (7, 1), (7, 2), (7, 3), (7, 4)], start=(1, 1), target=(9, 1), max_steps=60)  # >>^
+small = Maze(6, 4, walls=[(2, 3), (3, 3), (4, 3), (4, 2), (4, 1)], start=(1, 1), target=(6, 4), max_steps=25)  # >> The small maze: an L-shaped wall, shortest route 8 moves.
+big = Maze(10, 7, walls=[(2, 2), (2, 4), (2, 5), (2, 6), (3, 2), (3, 4), (4, 4), (4, 6), (4, 7), (5, 1), (5, 2), (5, 4),  # >> The big maze: shortest route 19 moves.
+                         (6, 5), (6, 6), (7, 2), (7, 3), (7, 4), (7, 6), (8, 4), (8, 6), (9, 1), (9, 2), (10, 4)],  # >>^
+           start=(1, 1), target=(10, 7), max_steps=60)  # >>^
 print("small maze:", small.width, "x", small.height, " big maze:", big.width, "x", big.height)  # >> A quick check."""),
 
         ("md", """## 3. Random actions and trajectories
 
-With no knowledge, the agent can only pick actions at random. We record each **trajectory** (state, action, reward, …) and count how often the rat reaches the cheese by luck."""),
+With no knowledge, the agent can only pick actions at random. We record each **trajectory** (state, action, reward, …) and count how often the agent reaches the goal by luck."""),
         ("code", """rng = np.random.default_rng(0)  # >> A random-number generator with a fixed seed, so the results are repeatable.
 
 def run_random_episode(env):  # >> Play one episode with random actions and record it.
@@ -99,13 +100,13 @@ def run_random_episode(env):  # >> Play one episode with random actions and reco
 
 episodes = [run_random_episode(small) for _ in range(2000)]  # >> Sample 2,000 random episodes.
 totals = [sum(r for _, _, r in ep) for ep in episodes]  # >> The total reward of each episode.
-reached = sum(1 for ep in episodes if ep[-1][2] == 0)  # >> Episodes that ended at the cheese (reward 0 on the last step).
-print(f"reached the cheese in {reached} of 2000 episodes ({reached / 20:.1f}%)")  # >> Only a few percent: luck.
+reached = sum(1 for ep in episodes if ep[-1][2] == 0)  # >> Episodes that ended at the goal (reward 0 on the last step).
+print(f"reached the goal in {reached} of 2000 episodes ({reached / 20:.1f}%)")  # >> Only a few percent: luck.
 
-plt.hist(totals, bins=np.arange(-20.5, 0, 1), color="#2a78d6")  # >> How the total rewards are spread.
+plt.hist(totals, bins=np.arange(-25.5, 0, 1), color="#2a78d6")  # >> How the total rewards are spread.
 plt.xlabel("total reward of the episode"); plt.ylabel("episodes")  # >> Axis labels.
 plt.title("2,000 random episodes on the small maze")  # >>^
-plt.show()  # >> Most episodes are cut off at −20."""),
+plt.show()  # >> Most episodes are cut off at −25."""),
 
         ("md", """## 4. Returns, computed backwards
 
@@ -117,7 +118,7 @@ With $G_t = R_{t+1} + \\gamma\\, G_{t+1}$, the return of every step is easiest t
         out.append(G)  # >>^
     return out[::-1]  # >> Put them back in time order.
 
-lucky = next(ep for ep in episodes if ep[-1][2] == 0)  # >> The first random episode that reached the cheese.
+lucky = next(ep for ep in episodes if ep[-1][2] == 0)  # >> The first random episode that reached the goal.
 G = returns([r for _, _, r in lucky], gamma=0.8)  # >> Its returns with γ = 0.8.
 for t, ((s, a, r), g) in enumerate(zip(lucky, G)):  # >> Print one row per step.
     print(f"t={t:2d}  state={s}  action={'↑↓←→'[a]}  R={r:4.0f}  G={g:6.2f}")  # >> Even a successful episode has negative returns."""),
@@ -131,7 +132,7 @@ The Q-table has one entry per square and action. **ε-greedy**: with probability
     q = Q[s]  # >> Otherwise exploit: the four values of this square.
     return int(rng.choice(np.flatnonzero(q == q.max())))  # >> The best action (ties broken at random).
 
-def monte_carlo(env, episodes=300, alpha=0.1, gamma=0.8, seed=0):  # >> Algorithm 1 of the lecture.
+def monte_carlo(env, episodes=300, alpha=0.1, gamma=0.8, seed=0):  # >> Monte Carlo control.
     rng = np.random.default_rng(seed)  # >> Each run gets its own random numbers.
     Q = {(c, r): np.zeros(4) for c in range(1, env.width + 1) for r in range(1, env.height + 1)}  # >> All entries 0 at the start.
     curve = []  # >> Total reward of every episode, to plot later.
@@ -152,7 +153,7 @@ def monte_carlo(env, episodes=300, alpha=0.1, gamma=0.8, seed=0):  # >> Algorith
         ("md", """## 6. Q-learning
 
 Q-learning updates after **every step**, towards one reward plus the best value of the next square: $Q(S,A) \\leftarrow Q(S,A) + \\alpha\\,[R + \\gamma \\max_a Q(S',a) - Q(S,A)]$. At the target there is no next square, so it counts as 0: the anchor."""),
-        ("code", """def q_learning(env, episodes=300, alpha=0.1, gamma=0.8, seed=0):  # >> Algorithm 3 of the lecture.
+        ("code", """def q_learning(env, episodes=300, alpha=0.1, gamma=0.8, seed=0):  # >> Q-learning.
     rng = np.random.default_rng(seed)  # >>^
     Q = {(c, r): np.zeros(4) for c in range(1, env.width + 1) for r in range(1, env.height + 1)}  # >> The same table of zeros.
     curve = []  # >>^
@@ -162,7 +163,7 @@ Q-learning updates after **every step**, towards one reward plus the best value 
         while not done:  # >>^
             a = epsilon_greedy(Q, s, eps, rng)  # >> Explore or exploit.
             s2, r, done = env.step(a)  # >> One step of experience.
-            at_target = s2 == env.target  # >> At the cheese, the next square's value is 0.
+            at_target = s2 == env.target  # >> At the goal, the next square's value is 0.
             target = r + (0.0 if at_target else gamma * Q[s2].max())  # >> The TD target: one reward + γ × best next value.
             Q[s][a] += alpha * (target - Q[s][a])  # >> The Q-learning update: no waiting for the end.
             s, total = s2, total + r  # >>^
@@ -186,7 +187,7 @@ plt.axhline(-7, ls="--", color="grey", lw=1, label="best possible (−7)")  # >>
 plt.xlabel("episode"); plt.ylabel("total reward (average of 50 runs)"); plt.legend()  # >>^
 plt.title("Small maze")  # >>^
 plt.show()  # >>^
-print(f"last 50 episodes: Monte Carlo {mc[-50:].mean():.2f}, Q-learning {ql[-50:].mean():.2f}")  # >> On this tiny maze the two end up close; the big maze below shows the real difference."""),
+print(f"last 50 episodes: Monte Carlo {mc[-50:].mean():.2f}, Q-learning {ql[-50:].mean():.2f}")  # >> Q-learning is already close to the best (−7); Monte Carlo lags behind. The big maze makes the gap dramatic."""),
 
         ("md", """## 8. What did it learn?
 
@@ -196,7 +197,7 @@ Draw the maze and, in every square, the action with the highest Q: the **greedy 
     for (c, r), q in Q.items():  # >> Visit every square.
         if (c, r) in env.walls:  # >> Walls: dark squares.
             ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#3b414b")); continue  # >>^
-        if (c, r) == env.target:  # >> The cheese square.
+        if (c, r) == env.target:  # >> The goal square.
             ax.add_patch(plt.Rectangle((c - 0.5, r - 0.5), 1, 1, color="#fff2c2")); continue  # >>^
         dc, dr = Maze.MOVES[int(q.argmax())]  # >> The direction of the best action.
         ax.arrow(c - 0.25 * dc, r - 0.25 * dr, 0.4 * dc, 0.4 * dr, head_width=0.15, color="#2a78d6", length_includes_head=True)  # >>^
@@ -205,17 +206,17 @@ Draw the maze and, in every square, the action with the highest Q: the **greedy 
     ax.set_title(title); plt.show()  # >>^
 
 Q, _ = q_learning(small, seed=1)  # >> One run of Q-learning.
-plot_policy(small, Q, "Q-learning: greedy policy after 300 episodes")  # >> Follow the arrows from (1,1): round the wall to the cheese.
+plot_policy(small, Q, "Q-learning: greedy policy after 300 episodes")  # >> Follow the arrows from (1,1): up the left edge, then along the top to the goal.
 print("Q at the start square (up, down, left, right):", np.round(Q[(1, 1)], 2))  # >> The best value is about −3.95: seven steps of −1, discounted."""),
 
         ("md", """## 9. The big maze
 
-Shortest route 22 moves, episodes cut off at 60 steps. A random walk almost never reaches the cheese, so Monte Carlo has nothing to learn from. Q-learning learns from every step."""),
+Shortest route 19 moves, episodes cut off at 60 steps. A random walk almost never reaches the goal, so Monte Carlo has nothing to learn from. Q-learning learns from every step."""),
         ("code", """mc_big = average_curve(monte_carlo, big, runs=20, episodes=600)  # >> 20 runs of 600 episodes each.
 ql_big = average_curve(q_learning, big, runs=20, episodes=600)  # >>^
 plt.plot(smooth(mc_big), color="#c0392b", label="Monte Carlo")  # >>^
 plt.plot(smooth(ql_big), color="#2a78d6", label="Q-learning")  # >>^
-plt.axhline(-21, ls="--", color="grey", lw=1, label="best possible (−21)")  # >>^
+plt.axhline(-18, ls="--", color="grey", lw=1, label="best possible (−18)")  # >>^
 plt.xlabel("episode"); plt.ylabel("total reward (average of 20 runs)"); plt.legend(); plt.title("Big maze")  # >>^
 plt.show()  # >> Monte Carlo stays at −60: it never reaches the target.
 Q_big, _ = q_learning(big, episodes=600, seed=3)  # >> One Q-learning run on the big maze…
@@ -226,7 +227,8 @@ plot_policy(big, Q_big, "Q-learning on the big maze")  # >> …and its greedy po
 1. Change `q_learning` into **SARSA**: choose the next action `a2` with `epsilon_greedy` *before* the update and use `Q[s2][a2]` instead of `Q[s2].max()`. Then really take `a2` in the next step.
 2. Write **Expected SARSA**: replace the max by the average of `Q[s2]` weighted by the ε-greedy probabilities (the best action gets 1 − ε + ε/4).
 3. Add a wall to `small` and see how the learned policy changes.
-4. Try γ = 0.5 and γ = 0.99. What happens to the learning curves, and why?"""),
+4. Try γ = 0.5 and γ = 0.99. What happens to the learning curves, and why?
+5. Change the rewards in `step`: +10 at the goal and 0 per move with γ = 1, then γ = 0.9. Which one still finds the shortest route, and why?"""),
     ],
 }
 
@@ -300,7 +302,7 @@ plt.show()  # >> Rule 1's swings grow until it falls; rule 2 stays near vertical
         ("md", """## 4. The boxes
 
 Each variable is cut into a few intervals: 3 × 3 × 6 × 3 = **162 boxes**. The learner is told only the box number."""),
-        ("code", """def get_box(state):  # >> The decoder: four numbers → one of 162 boxes (numbered as in the lecture).
+        ("code", """def get_box(state):  # >> The decoder: four numbers → one of 162 boxes (the classic numbering).
     x, xd, th, thd = state  # >>^
     bx = 0 if x < -0.8 else 1 if x < 0.8 else 2  # >> Cart position: left, middle, right.
     bxd = 0 if xd < -0.5 else 1 if xd < 0.5 else 2  # >> Cart velocity: moving left, slow, moving right.
@@ -314,7 +316,7 @@ print("upright and still:", get_box((0, 0, 0.0, 0)), "  leaning 8° right and fa
         ("md", """## 5. The ASE/ACE actor–critic
 
 Each box has a **weight** `w` (the actor's preference: positive pushes right) and a **prediction** `v` (the critic: 0 = safe, −1 = failure near). The actor's eligibility `e` is **signed**: it remembers which way the box pushed recently. The critic's TD error `r_hat` tells the actor whether to repeat or reverse what it did."""),
-        ("code", """def train(seed, critic=True, max_trials=400, solved=20000):  # >> Algorithm 5 of the lecture. Returns the trial lengths and the learned tables.
+        ("code", """def train(seed, critic=True, max_trials=400, solved=20000):  # >> The ASE/ACE actor–critic. Returns the trial lengths and the learned tables.
     rng = np.random.default_rng(seed)  # >>^
     alpha, beta, gamma, lam, lam_v = 1000.0, 0.5, 0.95, 0.9, 0.8  # >> The parameters of the 1983 paper.
     w, v = np.zeros(162), np.zeros(162)  # >> Actor weights and critic predictions, all zero.

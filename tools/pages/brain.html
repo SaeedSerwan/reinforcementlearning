@@ -43,6 +43,7 @@
         <div class="lab-foot" id="da-foot"></div>
       </div>
       <p>With two cues (an instruction cue that says which lever, then a trigger cue that says when), the surprise moves back past the trigger to the instruction cue, as Schultz's recordings did. It stops at the earliest event that reliably predicts the juice: before that, nothing does.</p>
+      <p class="takeaway"><b>Key idea:</b> the TD error and dopamine both move from the reward to the earliest reliable predictor of it.</p>
     </section>
 
     <section id="striatum" class="chapter">
@@ -74,6 +75,7 @@
         </tbody>
       </table></div>
       <p>In a simulator, experience costs only computer time. On a real robot, every trial costs time, wear and sometimes damage. Why are people so much faster? We <strong>know how the world works</strong> before we start, and we are often <strong>shown</strong> what to do. Those are the two directions below.</p>
+      <p class="takeaway"><b>Key idea:</b> model-free learning needs a lot of experience, because each step teaches it only a little.</p>
     </section>
 
     <section id="worldmodel" class="chapter">
@@ -91,6 +93,7 @@
         <div class="card"><span class="n">using a model</span><h4>Plan ahead</h4><p>Try possible futures in your head before acting. Value iteration on the maze (<a href="td.html#model">Part 4</a>) is the simplest case.</p></div>
       </div>
       <p>The difficulty: a learned model is never exactly right, and a policy trained inside it will find and exploit its mistakes.</p>
+      <p class="takeaway"><b>Key idea:</b> a learned model lets the agent practise in imagination, which saves real experience.</p>
     </section>
 
     <section id="demos" class="chapter">
@@ -108,6 +111,7 @@
         <div class="card"><span class="n">inverse RL</span><h4>Learn the reward instead</h4><p>Watch the expert and infer what goal they must be pursuing; then run ordinary RL on it. One method learned several games from 20–30 demonstrations.</p></div>
         <div class="card"><span class="n">in practice</span><h4>Combine both</h4><p>A robot learned to catch a ball in a cup: first by imitating a human, then improving by trial and error, about 100 tries.</p></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> demonstrations give the agent a good starting policy instead of a random one.</p>
     </section>
 
     <section id="summary" class="chapter">

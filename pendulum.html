@@ -121,6 +121,7 @@
         <div class="controls"><div class="seg" id="rw-mode"><button data-v="barto" class="on">0 every step, −1 at failure</button><button data-v="gym">+1 every step</button></div><button class="btn ghost small" id="rw-new">New trial</button></div>
         <div class="lab-body"><div class="plot" id="rw-plot"></div></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> four numbers describe the state, there are two actions, and the only reward is −1 when the pole falls.</p>
     </section>
 
     <section id="hard" class="chapter">
@@ -131,6 +132,7 @@
         <div class="card"><span class="n">3</span><h4>Late, unspecific feedback</h4><p>The pole falls at step 23. <em>Which</em> of the 23 pushes was wrong? And was the mistake pushing left or pushing right? The −1 does not say.</p></div>
       </div>
       <p>Barto, Sutton and Anderson called this the <strong>credit assignment problem</strong>. The rest of this page is how they solved it.</p>
+      <p class="takeaway"><b>Key idea:</b> the reward comes long after the push that caused it. That delay is what makes the problem hard.</p>
     </section>
 
     <section id="rules" class="chapter">
@@ -156,6 +158,7 @@
         <div class="controls"><button class="btn" id="bx-play">Play</button></div>
         <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="bx-cart"></div><div class="agent-view" id="bx-num" style="margin-top:.8rem"></div></div><div class="plot" id="bx-bars"></div></div></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> cutting each number into a few ranges turns a continuous state into one of 162 boxes, so tables work again.</p>
     </section>
 
     <section id="qboxes" class="chapter">
@@ -186,6 +189,7 @@
         <div class="lab-foot" id="cr-foot"></div>
       </div>
       <p>One undirected number, \(\hat r = -1\), produces a correctly directed correction in every box, because each box remembers its own direction. Blame makes you do the opposite, praise makes you do the same, in proportion to how recently you acted. The rule is not a judge: some blame lands on innocent pushes, but over many failures wrongly placed blame points in changing directions and cancels out, while deserved blame keeps pointing the same way.</p>
+      <p class="takeaway"><b>Key idea:</b> the trace remembers which boxes pushed which way, so a failure can blame the right pushes.</p>
     </section>
 
     <section id="critic" class="chapter">
@@ -199,6 +203,7 @@
         <div class="lab-body"><div class="lab-grid"><div class="plot" id="ck-cart"></div><div><div class="plot" id="ck-p"></div><div class="plot" id="ck-r"></div></div></div></div>
         <div class="lab-foot">Instead of 0, 0, 0, …, −1 the actor now gets a running commentary: worse… better… worse. The blame arrives earlier, while the push that caused the trouble is still eligible.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> the critic turns one late failure signal into an early warning on every step.</p>
     </section>
 
     <section id="system" class="chapter">
@@ -206,7 +211,7 @@
       <p>The 1983 architecture: a <strong>decoder</strong> (four numbers → box), an <strong>actor</strong> (ASE: weights and signed eligibilities, chooses the push) and a <strong>critic</strong> (ACE: predictions, sends \(\hat r\)). It is the actor–critic of Part 5 (the eligibility is "the direction that makes the taken action more likely", \(\hat r\) is "how good it was"), discovered before the name existed.</p>
       <div class="plot" id="sys-diagram" style="max-width:820px;margin:1.2rem 0"></div>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">Algorithm 5: ASE/ACE, live</p><p class="lab-hint">α = 1000, β = 0.5, γ = 0.95, λ = 0.9, λᵥ = 0.8. Solved = 20,000 steps without failing.</p></div>
+        <div class="lab-head"><p class="lab-title">The actor–critic, live</p><p class="lab-hint">α = 1000, β = 0.5, γ = 0.95, λ = 0.9, λᵥ = 0.8. Solved = 20,000 steps without failing.</p></div>
         <div class="controls">
           <label class="ctl">random seed <input class="num" type="number" id="as-seed" value="13" min="1" max="999"></label>
           <div class="seg" id="as-speed"><button data-v="watch">Watch every trial</button><button data-v="fast" class="on">Fast</button></div>
@@ -234,6 +239,7 @@
         <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean" id="cmp-table"></table></div></div>
         <div class="lab-foot">Two reasons the actor–critic wins: the traces give credit to many recent boxes at once, and the critic gives a learning signal at every step instead of one per failure. And the honest part: results depend on the seed. Never trust a single run.</div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> with a critic, learning is faster and more reliable, because the feedback arrives before the failure.</p>
     </section>
 
     <section id="lessons" class="chapter">

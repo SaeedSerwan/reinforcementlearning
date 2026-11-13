@@ -82,21 +82,23 @@
           <tr><td><strong>What is learned</strong></td><td>a value function</td><td>the policy itself (often with a value function to help)</td></tr>
         </tbody>
       </table></div>
+      <p class="takeaway"><b>Key idea:</b> policy methods learn the probabilities of actions directly, instead of deriving them from values.</p>
     </section>
 
     <section id="baseline" class="chapter">
       <h2><span class="chap">02</span>The baseline problem</h2>
-      <p>"Push up actions with good returns" needs to know what counts as good. Three actions, average returns −5, 0 and +5: easy. Now add 100 to everything: 95, 100, 105. Nothing about which action is better has changed, but every action is followed by a large positive number. Try it.</p>
+      <p>"Push up actions with good returns" needs to know what counts as good. Picture three adverts that bring 2, 4 and 6 clicks per hour on average: easy, advert C wins. Now add a constant to every reward, say +50: 52, 54, 56. Nothing about which advert is better has changed, but every advert now looks like a big success. Try it.</p>
       <div class="lab">
-        <div class="lab-head"><p class="lab-title">A learner that pushes probabilities</p><p class="lab-hint">Three actions; the learner sees rewards (plus a little noise) and adjusts the probabilities directly. Step size 0.02, 300 updates, average of 200 runs.</p></div>
+        <div class="lab-head"><p class="lab-title">A learner that pushes probabilities</p><p class="lab-hint">Three adverts; the learner sees rewards (plus a little noise) and adjusts the probabilities directly. Step size 0.03, 300 updates, average of 200 runs.</p></div>
         <div class="controls">
-          <label class="ctl">add to every reward <input type="range" id="bl-off" min="0" max="100" step="5" value="100"><output></output></label>
+          <label class="ctl">add to every reward <input type="range" id="bl-off" min="0" max="50" step="5" value="50"><output></output></label>
           <button class="btn" id="bl-run">Run</button>
         </div>
         <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="bl-curve"></div><div class="legend" id="bl-leg"></div></div><div><div class="plot" id="bl-q"></div><p class="plot-cap"><b>Q-learning</b> only asks which value is the largest</p></div></div></div>
         <div class="lab-foot" id="bl-foot"></div>
       </div>
       <p>So the baseline is not decoration. For Q-learning the offset never mattered: it only asks <em>which</em> value is largest. A policy gradient moves probabilities by <em>how much</em> each action was worth, so it needs "better or worse than usual".</p>
+      <p class="takeaway"><b>Key idea:</b> a return is only good or bad compared with what was expected. Subtracting a baseline makes that comparison.</p>
     </section>
 
     <section id="objective" class="chapter">
@@ -119,6 +121,7 @@
       <div class="formula" id="pg-formula">\[ \underbrace{\nabla_\theta J(\theta)}_{\textcolor{#2a78d6}{\text{how to change }\theta}} = \mathbb{E}\Big[\sum_t \underbrace{\nabla_\theta \log \pi_\theta(A_t \mid S_t)}_{\textcolor{#2a78d6}{\text{make the action more likely}}}\ \cdot \underbrace{\Psi_t}_{\textcolor{#2a78d6}{\text{how good it was}}}\Big] \]</div>
       <p class="big-line" style="font-size:1.25rem">Increase the probability of each action in proportion to how good it was.</p>
       <p>If Ψ is positive the action becomes more likely; if negative, less likely. The rule actually run, one step at a time: \(\theta \leftarrow \theta + \alpha\, \Psi_t\, \nabla_\theta \log \pi_\theta(A_t \mid S_t)\).</p>
+      <p class="takeaway"><b>Key idea:</b> the policy gradient pushes up the probability of each action in proportion to how much better than expected it was.</p>
     </section>
 
     <section id="factor1" class="chapter">
@@ -149,7 +152,7 @@
       <div class="table-wrap"><table class="clean">
         <thead><tr><th>Ψ</th><th>What it fixes</th><th>What is still wrong</th></tr></thead>
         <tbody>
-          <tr><td>\(G_t\) (REINFORCE)</td><td>the simplest choice</td><td>states differ in average return: high variance (the 95/100/105 problem)</td></tr>
+          <tr><td>\(G_t\) (REINFORCE)</td><td>the simplest choice</td><td>states differ in average return: high variance (the "+50" problem above)</td></tr>
           <tr><td>\(G_t - V(S_t)\)</td><td>a baseline: fair across states</td><td>must wait for the end of the episode</td></tr>
           <tr><td>\(Q(S_t,A_t) - V(S_t)\)</td><td>uses TD; this is the <strong>advantage</strong></td><td>two value functions to learn</td></tr>
           <tr><td>\(R_{t+1} + \gamma V(S_{t+1}) - V(S_t)\)</td><td>only V is needed</td><td>…and it is the <strong>TD error δ</strong> of Part 4</td></tr>
@@ -168,6 +171,7 @@
         <div class="controls"><button class="btn" id="ac-play">Train</button><button class="btn ghost small" id="ac-reset">Reset</button><label class="ctl">speed <input type="range" id="ac-speed" min="1" max="60" value="10"><output></output></label></div>
         <div class="lab-body"><div class="lab-grid three"><div><div class="plot" id="ac-actor"></div><p class="plot-cap"><b>Actor</b>: arrow length = probability</p></div><div><div class="plot" id="ac-critic"></div><p class="plot-cap"><b>Critic</b>: V(s)</p></div><div><div class="plot" id="ac-curve"></div><p class="plot-cap"><b>Total reward</b> per episode</p></div></div></div>
       </div>
+      <p class="takeaway"><b>Key idea:</b> the actor chooses, the critic judges. The critic's TD error replaces the noisy return.</p>
     </section>
 
     <section id="families" class="chapter">

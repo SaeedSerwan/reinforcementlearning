@@ -288,6 +288,7 @@
       this.stepR = o.stepR == null ? -1 : o.stepR; this.goalR = o.goalR == null ? 0 : o.goalR; this.cliffR = o.cliffR == null ? -100 : o.cliffR;
       this.N = this.W * this.H;
       this.extra = new Map((o.extra || []).map((x) => [this.key(x.at[0], x.at[1]), x.r])); // extra terminal squares with their own reward
+      this.coins = new Map((o.coins || []).map((x) => [this.key(x.at[0], x.at[1]), x.r])); // non-terminal bonus squares (rewarded every time they are entered)
     }
     key(c, r) { return (r - 1) * this.W + (c - 1); }
     cr(k) { return [(k % this.W) + 1, Math.floor(k / this.W) + 1]; }
@@ -302,6 +303,7 @@
       if (this.cliff.has(k)) return { s2: this.s0, r: this.cliffR, done: false, fell: true, at: k };
       if (this.extra.has(k)) return { s2: k, r: this.extra.get(k), done: true, extra: true };
       if (k === this.goal) return { s2: k, r: this.goalR, done: true };
+      if (this.coins.has(k)) return { s2: k, r: this.coins.get(k), done: false, coin: true };
       return { s2: k, r: this.stepR, done: false };
     }
     toggleWall(k) { if (k === this.s0 || k === this.goal) return; if (this.walls.has(k)) this.walls.delete(k); else this.walls.add(k); }
@@ -318,15 +320,23 @@
   }
   UL.Grid = Grid;
   UL.MAZES = {
-    small: { W: 5, H: 3, walls: [[3, 1], [3, 2]], start: [1, 1], target: [5, 1], cap: 20 },
-    big: { W: 9, H: 6, walls: [[3, 1], [3, 2], [3, 3], [3, 4], [5, 3], [5, 4], [5, 5], [5, 6], [7, 1], [7, 2], [7, 3], [7, 4]], start: [1, 1], target: [9, 1], cap: 60 },
+    small: { W: 6, H: 4, walls: [[2, 3], [3, 3], [4, 3], [4, 2], [4, 1]], start: [1, 1], target: [6, 4], cap: 25 },
+    big: { W: 10, H: 7, walls: [[2, 2], [2, 4], [2, 5], [2, 6], [3, 2], [3, 4], [4, 4], [4, 6], [4, 7], [5, 1], [5, 2], [5, 4], [6, 5], [6, 6], [7, 2], [7, 3], [7, 4], [7, 6], [8, 4], [8, 6], [9, 1], [9, 2], [10, 4]], start: [1, 1], target: [10, 7], cap: 60 },
     open6: { W: 6, H: 6, walls: [[2, 2], [3, 2], [4, 2], [4, 3], [4, 4], [2, 4], [2, 5]], start: [1, 1], target: [6, 6], cap: 60 },
-    cliff: { W: 12, H: 4, cliff: Array.from({ length: 10 }, (_, i) => [i + 2, 1]), start: [1, 1], target: [12, 1], cap: 200 },
+    cliff: { W: 10, H: 4, cliff: Array.from({ length: 8 }, (_, i) => [i + 2, 1]), start: [1, 1], target: [10, 1], cap: 200 },
     twoCheese: { W: 6, H: 4, walls: [[3, 2], [3, 3]], start: [1, 3], target: [6, 4], goalR: 10, stepR: 0, extra: [{ at: [1, 1], r: 1 }], cap: 50 },
   };
+  UL.REWARD_LAB = { W: 8, H: 5, walls: [[4, 2], [4, 3], [4, 4]], start: [1, 1], target: [8, 5], cap: 60 };
   UL.grid = (name) => new Grid(UL.MAZES[name]);
-  // the lucky trajectory of the lecture (slide "One lucky trajectory")
-  UL.LUCKY = [[[1, 1], 0], [[1, 2], 2], [[1, 2], 0], [[1, 3], 0], [[1, 3], 3], [[2, 3], 3], [[3, 3], 0], [[3, 3], 3], [[4, 3], 1], [[4, 2], 3], [[5, 2], 1]];
+  // a "lucky" random episode on a maze: random actions that happen to reach the goal, with at least one bump
+  UL.lucky = function (g, seed = 1, minLen = 10, maxLen = 14) {
+    for (let k = 0; k < 20000; k++) {
+      const r = rng(seed * 7919 + k); let s = g.s0; const steps = []; let bump = false;
+      for (let t = 0; t < maxLen; t++) { const a = r.int(4), o = g.step(s, a); steps.push({ s, a, r: o.r, s2: o.s2, bump: !!o.bump, done: o.done }); bump = bump || o.bump; s = o.s2; if (o.done) break; }
+      if (steps.length >= minLen && steps[steps.length - 1].done && bump) return steps;
+    }
+    return null;
+  };
 
   /* ---------------------------------------------------- tabular learners */
   function argmaxRand(q, r) { let m = -Infinity, best = []; for (let i = 0; i < q.length; i++) { if (q[i] > m + 1e-12) { m = q[i]; best = [i]; } else if (Math.abs(q[i] - m) <= 1e-12) best.push(i); } return best.length === 1 ? best[0] : best[r.int(best.length)]; }
@@ -412,90 +422,113 @@
     let V = new Float64Array(grid.N); const out = [V.slice()];
     for (let k = 0; k < sweeps; k++) {
       const V2 = V.slice();
-      for (const s of grid.states()) { if (s === grid.goal) continue; let best = -Infinity; for (let a = 0; a < 4; a++) { const o = grid.step(s, a); best = Math.max(best, o.r + (o.done ? 0 : gamma * V[o.s2])); } V2[s] = best; }
+      for (const s of grid.states()) { if (s === grid.goal || grid.extra.has(s)) continue; let best = -Infinity; for (let a = 0; a < 4; a++) { const o = grid.step(s, a); best = Math.max(best, o.r + (o.done ? 0 : gamma * V[o.s2])); } V2[s] = best; }
       V = V2; out.push(V.slice());
     }
     return out;
   };
 
   /* ---------------------------------------------------- drawing grids */
-  UL.IMG = {};
-  ['rat', 'cheese'].forEach((n) => { const im = new Image(); im.src = (window.UL_ROOT || '') + `assets/img/${n}.png`; UL.IMG[n] = im; im.onload = () => document.dispatchEvent(new Event('ul-img')); });
-  UL.heat = function (v, vmin = -5) { // 0 → white, vmin → deep red
-    const t = Math.max(0, Math.min(1, v / vmin));
-    const a = [255, 255, 255], b = [232, 163, 155], c = [176, 58, 46];
-    const mix = (x, y, f) => x.map((xi, i) => Math.round(xi + (y[i] - xi) * f));
-    const col = t < 0.5 ? mix(a, b, t * 2) : mix(b, c, (t - 0.5) * 2);
-    return `rgb(${col[0]},${col[1]},${col[2]})`;
+  const GC = { line: '#e4e4df', frame: '#cfcfca', wall: '#2b313b', wall2: '#3a414d', start: '#f1f5fb', goal: '#e2f4ea', goalInk: '#138a5c', pit: '#fbe5e2', pitInk: '#c0392b', gold: '#fdf2d3', goldInk: '#a86f00', ink: '#16181d' };
+  UL.GC = GC;
+  // diverging colour: negative → red, positive → blue, 0 → white
+  UL.div = function (v, scale = 5) {
+    const t = Math.max(-1, Math.min(1, v / scale)), a = Math.abs(t);
+    const neg = [[255, 255, 255], [246, 205, 199], [214, 96, 77], [165, 38, 32]], pos = [[255, 255, 255], [204, 222, 244], [92, 148, 214], [31, 86, 160]];
+    const ramp = t < 0 ? neg : pos, x = a * 3, k = Math.min(2, Math.floor(x)), f = x - k;
+    const c = ramp[k].map((u, i) => Math.round(u + (ramp[k + 1][i] - u) * f));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
   };
-  UL.heatPos = function (v, vmax = 1) { const t = Math.max(0, Math.min(1, v / vmax)); const a = [255, 255, 255], b = [42, 120, 214]; return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(',')})`; };
+  UL.divInk = (v, scale = 5) => (Math.abs(v / scale) > 0.62 ? '#fff' : '#26282c');
+  UL.heat = (v, vmin = -5) => UL.div(v, -vmin);       // kept for older calls (negative values)
+  UL.heatPos = (v, vmax = 1) => UL.div(v, vmax);      // kept for older calls (positive values)
   class GridView {
     constructor(el, grid, o = {}) {
       this.g = grid; this.o = o;
       const cell = o.cell || 72;
-      this.p = new Plot(el, { w: grid.W * cell + 4, h: grid.H * cell + 4 + (o.extraH || 0), pad: { l: 2, r: 2, t: 2 + (o.extraH || 0), b: 2 }, label: o.label || 'Grid world' });
+      this.p = new Plot(el, { w: grid.W * cell + 4, h: grid.H * cell + 4, pad: { l: 2, r: 2, t: 2, b: 2 }, label: o.label || 'Grid world' });
       this.reset();
     }
     reset() { this.p.domain(0.5, this.g.W + 0.5, 0.5, this.g.H + 0.5, false); this.cs = (this.p.W - 4) / this.g.W; }
-    X(c) { return this.p.sx(c); } Y(r) { return this.p.sy(r); }
     cellAt(e) { const [X, Y] = this.p.pointer(e); const c = Math.round(this.p.ix(X)), r = Math.round(this.p.iy(Y)); if (c < 1 || c > this.g.W || r < 1 || r > this.g.H) return -1; return this.g.key(c, r); }
+    box(k) { const [c, r] = this.g.cr(k), P = this.p; return { x: P.sx(c - 0.5), y: P.sy(r + 0.5), s: this.cs, cx: P.sx(c), cy: P.sy(r) }; }
+    fill(k, col, inset = 0, rad = 0) { const b = this.box(k), c = this.p.ctx; c.fillStyle = col; if (rad && c.roundRect) { c.beginPath(); c.roundRect(b.x + inset, b.y + inset, b.s - 2 * inset, b.s - 2 * inset, rad); c.fill(); } else c.fillRect(b.x + inset, b.y + inset, b.s - 2 * inset, b.s - 2 * inset); }
+    label(k, txt, pos, o = {}) {
+      const b = this.box(k), P = this.p, small = this.cs < 56;
+      const at = { tl: [b.x + 5, b.y + 9, 'left'], br: [b.x + b.s - 5, b.y + b.s - 8, 'right'], bc: [b.cx, b.y + b.s - 9, 'center'], c: [b.cx, b.cy, 'center'], tc: [b.cx, b.y + 10, 'center'] }[pos];
+      P.textPx(txt, at[0], at[1], { align: at[2], font: o.font || `${o.w || 500} ${o.size || (small ? 9.5 : 11)}px "IBM Plex Mono", monospace`, color: o.color || '#6b6b68', halo: o.halo });
+    }
+    flag(k, col) { const b = this.box(k), c = this.p.ctx, h = b.s * 0.42, x = b.cx - h * 0.18, y = b.cy - h * 0.55; c.save(); c.strokeStyle = col; c.lineWidth = Math.max(1.6, b.s * 0.03); c.lineCap = 'round'; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + h); c.stroke(); c.fillStyle = col; c.beginPath(); c.moveTo(x, y); c.lineTo(x + h * 0.62, y + h * 0.2); c.lineTo(x, y + h * 0.42); c.closePath(); c.fill(); c.restore(); }
+    hazard(k) { const b = this.box(k), c = this.p.ctx, h = b.s * 0.34; c.save(); c.fillStyle = GC.pitInk; c.beginPath(); c.moveTo(b.cx, b.cy - h * 0.75); c.lineTo(b.cx + h * 0.72, b.cy + h * 0.5); c.lineTo(b.cx - h * 0.72, b.cy + h * 0.5); c.closePath(); c.fill(); c.fillStyle = '#fff'; c.font = `700 ${Math.round(h * 0.7)}px "IBM Plex Sans", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', b.cx, b.cy + h * 0.08); c.restore(); }
+    coin(k) { const b = this.box(k), c = this.p.ctx, r = b.s * 0.15; c.save(); c.fillStyle = '#e9b23c'; c.strokeStyle = '#a86f00'; c.lineWidth = 1.5; c.beginPath(); c.arc(b.cx, b.cy - b.s * 0.06, r, 0, 2 * Math.PI); c.fill(); c.stroke(); c.restore(); }
+    agent(k, alpha = 1, dx = 0) { const b = this.box(k), c = this.p.ctx, r = Math.max(6, b.s * 0.19); c.save(); c.globalAlpha = alpha; c.shadowColor = 'rgba(0,0,0,.18)'; c.shadowBlur = 6; c.shadowOffsetY = 1; c.fillStyle = GC.ink; c.beginPath(); c.arc(b.cx + dx * b.s, b.cy, r, 0, 2 * Math.PI); c.fill(); c.shadowColor = 'transparent'; c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke(); c.restore(); }
     draw(o = {}) {
-      const g = this.g, P = this.p, c = P.ctx, cs = this.cs; P.clear();
-      const rect = (k, fill) => { const [cc, rr] = g.cr(k); c.fillStyle = fill; c.fillRect(P.sx(cc - 0.5), P.sy(rr + 0.5), cs, cs); };
+      const g = this.g, P = this.p, c = P.ctx, cs = this.cs, dv = o.scale || (o.vmax || (o.vmin ? -o.vmin : 5));
+      P.clear(); c.fillStyle = '#fff'; c.fillRect(P.sx(0.5), P.sy(g.H + 0.5), cs * g.W, cs * g.H);
+      const special = (k) => g.walls.has(k) || g.cliff.has(k) || k === g.goal || g.extra.has(k);
       // backgrounds
       for (let k = 0; k < g.N; k++) {
-        if (g.walls.has(k)) { rect(k, '#3b414b'); const [cc, rr] = g.cr(k); c.save(); c.beginPath(); c.rect(P.sx(cc - 0.5), P.sy(rr + 0.5), cs, cs); c.clip(); c.strokeStyle = '#59606b'; c.lineWidth = 1.2; for (let t = -cs; t < cs * 2; t += 9) { c.beginPath(); c.moveTo(P.sx(cc - 0.5) + t, P.sy(rr + 0.5) + cs); c.lineTo(P.sx(cc - 0.5) + t + cs, P.sy(rr + 0.5)); c.stroke(); } c.restore(); continue; }
-        if (g.cliff.has(k)) { rect(k, '#e4e4e0'); continue; }
-        if (k === g.goal || g.extra.has(k)) { rect(k, '#fff2c2'); continue; }
-        if (o.V) rect(k, o.vPos ? UL.heatPos(o.V[k], o.vmax || 1) : UL.heat(o.V[k], o.vmin || -5));
-        if (o.cellFill && o.cellFill[k]) rect(k, o.cellFill[k]);
+        if (g.walls.has(k)) continue;
+        if (g.cliff.has(k)) { this.fill(k, GC.pit); continue; }
+        if (g.extra.has(k)) { this.fill(k, g.extra.get(k) < 0 ? GC.pit : GC.gold); continue; }
+        if (k === g.goal) { this.fill(k, GC.goal); continue; }
+        if (o.V) this.fill(k, UL.div(o.V[k], dv));
+        else if (k === g.s0 && !o.noStart) this.fill(k, GC.start);
+        if (o.cellFill && o.cellFill[k]) this.fill(k, o.cellFill[k]);
       }
       // Q triangles
       if (o.Q) for (const k of g.states()) {
-        if (k === g.goal || g.cliff.has(k)) continue;
-        const [cc, rr] = g.cr(k), x0 = P.sx(cc - 0.5), y0 = P.sy(rr + 0.5), x1 = x0 + cs, y1 = y0 + cs, xm = x0 + cs / 2, ym = y0 + cs / 2;
-        const tri = [[[x0, y0], [x1, y0]], [[x0, y1], [x1, y1]], [[x0, y0], [x0, y1]], [[x1, y0], [x1, y1]]]; // up, down, left, right
+        if (special(k)) continue;
+        const b = this.box(k), x0 = b.x, y0 = b.y, x1 = x0 + cs, y1 = y0 + cs, xm = b.cx, ym = b.cy;
+        const tri = [[[x0, y0], [x1, y0]], [[x0, y1], [x1, y1]], [[x0, y0], [x0, y1]], [[x1, y0], [x1, y1]]];
         for (let a = 0; a < 4; a++) {
           const v = o.Q[k * 4 + a]; c.beginPath(); c.moveTo(xm, ym); c.lineTo(...tri[a][0]); c.lineTo(...tri[a][1]); c.closePath();
-          c.fillStyle = UL.heat(v, o.vmin || -5); c.fill(); c.strokeStyle = '#d9d9d5'; c.lineWidth = 0.7; c.stroke();
-          if (o.hiQ && o.hiQ[0] === k && o.hiQ[1] === a) { c.strokeStyle = '#eda100'; c.lineWidth = 3; c.stroke(); }
-          if (o.qNums && cs >= 60) {
-            const pos = [[xm, y0 + cs * 0.16], [xm, y1 - cs * 0.16], [x0 + cs * 0.19, ym], [x1 - cs * 0.19, ym]][a];
-            P.textPx(v === 0 ? '0' : v.toFixed(Math.abs(v) < 10 ? 2 : 1).replace('-', '−'), pos[0], pos[1], { font: `${cs < 80 ? 9 : 10}px "IBM Plex Mono", monospace`, color: '#333' });
-          }
+          c.fillStyle = UL.div(v, dv); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 1.2; c.stroke();
+          if (o.qNums && cs >= 60) { const pos = [[xm, y0 + cs * 0.17], [xm, y1 - cs * 0.17], [x0 + cs * 0.2, ym], [x1 - cs * 0.2, ym]][a]; P.textPx(UL.fmt(v, Math.abs(v) < 10 ? 2 : 1), pos[0], pos[1], { font: `${cs < 84 ? 9 : 10}px "IBM Plex Mono", monospace`, color: UL.divInk(v, dv) }); }
         }
+        if (o.hiQ && o.hiQ[0] === k) { const a = o.hiQ[1]; c.beginPath(); c.moveTo(xm, ym); c.lineTo(...tri[a][0]); c.lineTo(...tri[a][1]); c.closePath(); c.strokeStyle = '#eda100'; c.lineWidth = 3; c.stroke(); }
       }
-      // grid lines
-      c.strokeStyle = '#222'; c.lineWidth = 1;
-      for (let i = 0; i <= g.W; i++) { const X = Math.round(P.sx(i + 0.5)) + 0.5; c.beginPath(); c.moveTo(X, P.sy(g.H + 0.5)); c.lineTo(X, P.sy(0.5)); c.stroke(); }
-      for (let j = 0; j <= g.H; j++) { const Y = Math.round(P.sy(j + 0.5)) + 0.5; c.beginPath(); c.moveTo(P.sx(0.5), Y); c.lineTo(P.sx(g.W + 0.5), Y); c.stroke(); }
-      // target
-      const [tc, tr] = g.cr(g.goal); const two = g.extra.size > 0; this.icon('cheese', tc, tr + (two ? 0.08 : 0), two ? 0.66 : 0.62);
-      g.extra.forEach((rew, k) => { const [ec, er] = g.cr(k); this.icon('cheese', ec, er + 0.08, 0.32); });
-      if (two) { const lab = (k, v) => { const [cc, rr] = g.cr(k); P.textPx(`+${v}`, P.sx(cc), P.sy(rr) + cs * 0.3, { font: `600 ${cs < 60 ? 11 : 13}px "IBM Plex Mono", monospace`, color: '#8a6d00' }); }; lab(g.goal, g.goalR); g.extra.forEach((v, k) => lab(k, v)); }
-      if (o.coords) for (const k of g.states()) { const [cc, rr] = g.cr(k); P.textPx(`(${cc},${rr})`, P.sx(cc - 0.5) + 4, P.sy(rr + 0.5) + 9, { align: 'left', color: '#a3a3a0', font: '9.5px "IBM Plex Mono", monospace' }); }
-      if (o.V && o.vNums) for (const k of g.states()) { if (k === g.goal || g.cliff.has(k) || g.extra.has(k)) continue; const [cc, rr] = g.cr(k); P.textPx(UL.fmt(o.V[k]), P.sx(cc), P.sy(rr) + (o.policy ? cs * 0.36 : 0), { font: `500 ${cs < 60 ? 10 : o.policy ? 11 : 12}px "IBM Plex Mono", monospace`, color: '#222' }); }
-      if (o.texts) o.texts.forEach(([k, s, col]) => { const [cc, rr] = g.cr(k); P.textPx(s, P.sx(cc), P.sy(rr) + cs * 0.3, { font: '500 11px "IBM Plex Mono", monospace', color: col || '#2a78d6', halo: true }); });
-      if (o.policy) for (const k of g.states()) { if (k === g.goal || g.cliff.has(k) || g.extra.has(k)) continue; const a = o.policy[k]; if (a == null) continue; const [cc, rr] = g.cr(k); const L = 0.3; P.arrow(cc - DEL[a][0] * L, rr - DEL[a][1] * L, cc + DEL[a][0] * L, rr + DEL[a][1] * L, { color: o.policyColor || '#2a78d6', w: 2.4, head: 10 }); }
-      if (o.probs) for (const k of g.states()) { if (k === g.goal || g.cliff.has(k)) continue; const p = o.probs[k]; const [cc, rr] = g.cr(k); for (let a = 0; a < 4; a++) { const L = 0.44 * p[a]; if (L > 0.03) P.arrow(cc, rr, cc + DEL[a][0] * L, rr + DEL[a][1] * L, { color: UL.rgba('#2a78d6', 0.35 + 0.65 * p[a]), w: 1 + 3 * p[a], head: 5 + 6 * p[a] }); } P.marker(cc, rr, { r: 2.4, fill: '#222', ring: false }); }
-      if (o.trace) for (const k of g.states()) { const e = o.trace[k]; if (e > 0.005) { const [cc, rr] = g.cr(k); const h = Math.min(1, e / (o.traceMax || 2)) * cs * 0.6; c.fillStyle = '#eda100'; c.fillRect(P.sx(cc - 0.42), P.sy(rr - 0.42) - h, cs * 0.12, h); } }
-      if (o.path && o.path.length > 1) { const jit = (i) => (o.jitter ? Math.sin(i * 2.3) * 0.12 : 0); P.poly(o.path.map((k, i) => { const [cc, rr] = g.cr(k); return [cc + jit(i), rr + jit(i + 7)]; }), { color: o.pathColor || '#c0392b', w: 2, alpha: o.pathAlpha || 0.8 }); }
-      if (o.bumps) o.bumps.forEach((k) => { const [cc, rr] = g.cr(k); P.circle(cc - 0.25, rr + 0.25, 0.1, { color: '#eda100', w: 2.2 }); });
-      if (o.falls) o.falls.forEach((k) => { const [cc, rr] = g.cr(k); P.marker(cc, rr, { shape: 'x', r: 6, fill: '#c0392b' }); });
-      if (o.hiCell != null) { const [cc, rr] = g.cr(o.hiCell); c.strokeStyle = o.hiColor || '#2a78d6'; c.lineWidth = 3.5; c.strokeRect(P.sx(cc - 0.5) + 3, P.sy(rr + 0.5) + 3, cs - 6, cs - 6); }
-      if (o.hiCells) o.hiCells.forEach((k) => { const [cc, rr] = g.cr(k); c.strokeStyle = '#2a78d6'; c.lineWidth = 3; c.strokeRect(P.sx(cc - 0.5) + 3, P.sy(rr + 0.5) + 3, cs - 6, cs - 6); });
-      if (o.agent != null) { const [ac, ar] = g.cr(o.agent); this.icon('rat', ac + (o.agentDx || 0), ar - 0.08, 0.7, o.agentAlpha); }
-      if (o.ghost != null) { const [ac, ar] = g.cr(o.ghost); this.icon('rat', ac, ar - 0.08, 0.7, 0.3); }
-      if (o.msg) P.textPx(o.msg, P.W / 2, P.H / 2, { font: '600 15px "IBM Plex Sans", sans-serif', color: o.msgColor || '#111', halo: true });
+      // walls
+      for (const k of g.walls) this.fill(k, GC.wall, 1, 3);
+      // grid lines + frame
+      c.strokeStyle = GC.line; c.lineWidth = 1;
+      for (let i = 1; i < g.W; i++) { const X = Math.round(P.sx(i + 0.5)) + 0.5; c.beginPath(); c.moveTo(X, P.sy(g.H + 0.5)); c.lineTo(X, P.sy(0.5)); c.stroke(); }
+      for (let j = 1; j < g.H; j++) { const Y = Math.round(P.sy(j + 0.5)) + 0.5; c.beginPath(); c.moveTo(P.sx(0.5), Y); c.lineTo(P.sx(g.W + 0.5), Y); c.stroke(); }
+      for (const k of g.walls) this.fill(k, GC.wall, 1, 3);
+      c.strokeStyle = GC.frame; c.lineWidth = 1.5; c.strokeRect(P.sx(0.5) + 0.75, P.sy(g.H + 0.5) + 0.75, cs * g.W - 1.5, cs * g.H - 1.5);
+      // special tiles
+      const rlab = (v) => (v > 0 ? '+' : '') + UL.fmt(v, Math.abs(v) < 10 && v % 1 ? 1 : 0);
+      for (const k of g.cliff) { this.hazard(k); if (cs >= 34) this.label(k, rlab(g.cliffR), 'bc', { color: GC.pitInk, size: cs < 56 ? 8.5 : 10 }); }
+      g.extra.forEach((v, k) => { if (v < 0) this.hazard(k); else this.flag(k, GC.goldInk); this.label(k, rlab(v), 'bc', { color: v < 0 ? GC.pitInk : GC.goldInk, w: 600 }); });
+      this.flag(g.goal, GC.goalInk); this.label(g.goal, g.extra.size || g.goalR !== 0 ? rlab(g.goalR) : 'goal', 'bc', { color: GC.goalInk, w: 600 });
+      if (g.coins) g.coins.forEach((v, k) => { this.coin(k); this.label(k, rlab(v), 'bc', { color: GC.goldInk, w: 600 }); });
+      if (!o.noStart && !o.V && cs >= 44) this.label(g.s0, 'start', 'tl', { color: '#8a94a6', size: 9 });
+      if (o.coords) for (const k of g.states()) { if (special(k)) continue; const [cc, rr] = g.cr(k); this.label(k, `${cc},${rr}`, k === g.s0 && !o.V ? 'br' : 'tl', { color: '#b1b1ac', size: 9 }); }
+      if (o.V && o.vNums) for (const k of g.states()) { if (special(k)) continue; const b = this.box(k); P.textPx(UL.fmt(o.V[k]), b.cx, b.cy + (o.policy ? cs * 0.33 : 0), { font: `500 ${cs < 60 ? 10 : o.policy ? 10.5 : 12}px "IBM Plex Mono", monospace`, color: UL.divInk(o.V[k], dv) }); }
+      if (o.texts) o.texts.forEach(([k, s, col]) => { const b = this.box(k); P.textPx(s, b.cx, b.cy + cs * 0.3, { font: '500 11px "IBM Plex Mono", monospace', color: col || '#2a78d6', halo: true }); });
+      if (o.trace) for (const k of g.states()) { const e = o.trace[k]; if (e > 0.005) { const b = this.box(k), h = Math.min(1, e / (o.traceMax || 2)) * cs * 0.62; c.fillStyle = '#eda100'; c.fillRect(b.x + cs * 0.08, b.y + cs * 0.9 - h, cs * 0.1, h); } }
+      // policy / probabilities
+      const arrowCol = (k) => (o.V ? (Math.abs(o.V[k] / dv) > 0.62 ? '#fff' : GC.ink) : o.policyColor || GC.ink);
+      if (o.policy) for (const k of g.states()) { if (special(k)) continue; const a = o.policy[k]; if (a == null) continue; const [cc, rr] = g.cr(k), L = 0.24; P.arrow(cc - DEL[a][0] * L, rr - DEL[a][1] * L + (o.V && o.vNums ? 0.08 : 0), cc + DEL[a][0] * L, rr + DEL[a][1] * L + (o.V && o.vNums ? 0.08 : 0), { color: o.policyColor || arrowCol(k), w: 2, head: Math.max(7, cs * 0.12) }); }
+      if (o.probs) for (const k of g.states()) { if (special(k)) continue; const p = o.probs[k], [cc, rr] = g.cr(k); for (let a = 0; a < 4; a++) { const L = 0.42 * p[a]; if (L > 0.03) P.arrow(cc, rr, cc + DEL[a][0] * L, rr + DEL[a][1] * L, { color: UL.rgba('#2a78d6', 0.3 + 0.7 * p[a]), w: 1 + 3 * p[a], head: 5 + 6 * p[a] }); } P.marker(cc, rr, { r: 2.4, fill: GC.ink, ring: false }); }
+      // path, bumps, falls
+      if (o.path && o.path.length > 1) { const jit = (i) => (o.jitter ? Math.sin(i * 2.3) * 0.1 : 0); c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; P.poly(o.path.map((k, i) => { const [cc, rr] = g.cr(k); return [cc + jit(i), rr + jit(i + 7)]; }), { color: o.pathColor || '#2a78d6', w: 2.4, alpha: o.pathAlpha || 0.75 }); c.restore(); }
+      if (o.bumps) o.bumps.forEach((k) => { const b = this.box(k); c.strokeStyle = '#eda100'; c.lineWidth = 2.2; c.beginPath(); c.arc(b.cx + cs * 0.27, b.cy - cs * 0.27, cs * 0.09, 0, 2 * Math.PI); c.stroke(); });
+      if (o.falls) o.falls.forEach((k) => { const [cc, rr] = g.cr(k); P.marker(cc, rr, { shape: 'x', r: 6, fill: GC.pitInk }); });
+      if (o.hiCell != null) { const b = this.box(o.hiCell); c.strokeStyle = o.hiColor || '#2a78d6'; c.lineWidth = 3; c.strokeRect(b.x + 3, b.y + 3, cs - 6, cs - 6); }
+      if (o.hiCells) o.hiCells.forEach((k) => { const b = this.box(k); c.strokeStyle = '#2a78d6'; c.lineWidth = 3; c.strokeRect(b.x + 3, b.y + 3, cs - 6, cs - 6); });
+      if (o.ghost != null) this.agent(o.ghost, 0.22);
+      if (o.agent != null) this.agent(o.agent, o.agentAlpha == null ? 1 : o.agentAlpha, o.agentDx || 0);
+      if (o.msg) { c.save(); c.font = '600 14px "IBM Plex Sans", sans-serif'; const w = c.measureText(o.msg).width + 28; c.fillStyle = 'rgba(255,255,255,.94)'; c.strokeStyle = o.msgColor || GC.ink; c.lineWidth = 1.2; const X = P.W / 2 - w / 2, Y = P.H / 2 - 17; if (c.roundRect) { c.beginPath(); c.roundRect(X, Y, w, 34, 8); c.fill(); c.stroke(); } else { c.fillRect(X, Y, w, 34); } c.restore(); P.textPx(o.msg, P.W / 2, P.H / 2, { font: '600 14px "IBM Plex Sans", sans-serif', color: o.msgColor || GC.ink }); }
       return this;
-    }
-    icon(name, c, r, size, alpha) {
-      const im = UL.IMG[name], P = this.p; if (!im || !im.complete || !im.naturalWidth) return;
-      const w = this.cs * size, h = w * im.naturalHeight / im.naturalWidth, ctx = P.ctx;
-      ctx.save(); if (alpha != null) ctx.globalAlpha = alpha; ctx.drawImage(im, P.sx(c) - w / 2, P.sy(r) - h / 2, w, h); ctx.restore();
     }
   }
   UL.GridView = GridView;
+  // a small legend explaining the tiles
+  UL.gridLegend = function (el, items = ['start', 'agent', 'goal', 'wall']) {
+    const sw = { start: `<span class="sw" style="background:${GC.start};border:1px solid #d6dde8"></span>start`, agent: `<span class="sw dot"></span>agent`, goal: `<span class="sw" style="background:${GC.goal}"><i style="border-left-color:${GC.goalInk}"></i></span>goal`, wall: `<span class="sw" style="background:${GC.wall}"></span>wall`, pit: `<span class="sw" style="background:${GC.pit};color:${GC.pitInk}">!</span>hazard`, bonus: `<span class="sw" style="background:${GC.gold}"></span>bonus`, path: `<span class="sw line"></span>path`, value: `<span class="sw" style="background:linear-gradient(90deg,${UL.div(-5)},#fff,${UL.div(5)})"></span>value: − … 0 … +` };
+    (typeof el === 'string' ? document.querySelector(el) : el).innerHTML = items.map((i) => `<span class="lg">${sw[i]}</span>`).join('');
+  };
   UL.fmt = (v, d = 2) => (Math.abs(v) < 0.5 * 10 ** -d ? '0' : v.toFixed(d)).replace('-', '−');
 
   /* ---------------------------------------------------- simple line charts */
@@ -614,7 +647,6 @@
   UL.stats = function (el, items) { // [{k, v, hi}]
     (typeof el === 'string' ? document.getElementById(el) : el).innerHTML = items.map((it) => `<div class="stat${it.hi ? ' hi' : ''}"><span class="k">${it.k}</span><span class="v">${it.v}</span></div>`).join('');
   };
-  document.addEventListener('ul-img', () => document.dispatchEvent(new Event('ul-redraw')));
 
   window.UL = UL;
 })();

@@ -15,24 +15,24 @@
     const off = UL.range('bl-off', () => { drawQ(); }, (v) => `+${v}`); const foot = $('#bl-foot');
     UL.legend($('#bl-leg'), [{ color: '#c0392b', label: 'Ψ = reward (no baseline)', cls: 'line' }, { color: '#2a78d6', label: 'Ψ = reward − running average (baseline)', cls: 'line' }]);
     function sim(o, baseline, runs = 200, T = 300) {
-      const r = rng(7), mean = [-5 + o, o, 5 + o], P = new Float64Array(T + 1);
+      const r = rng(7), mean = [2 + o, 4 + o, 6 + o], P = new Float64Array(T + 1);
       for (let k = 0; k < runs; k++) {
         const th = [0, 0, 0]; let b = null, n = 0;
         for (let t = 0; t <= T; t++) {
           const p = softmax(th); P[t] += p[2]; if (t === T) break;
           let u = r(), a = 0; while (a < 2 && u > p[a]) { u -= p[a]; a++; }
           const G = mean[a] + r.normal(), psi = baseline ? G - (b == null ? G : b) : G;
-          for (let i = 0; i < 3; i++) th[i] += 0.02 * psi * ((i === a ? 1 : 0) - p[i]);
+          for (let i = 0; i < 3; i++) th[i] += 0.03 * psi * ((i === a ? 1 : 0) - p[i]);
           if (baseline) { n++; b = b == null ? G : b + (G - b) / n; }
         }
       }
       return Array.from(P, (v) => v / runs);
     }
-    function drawQ() { const o = off.v; UL.bars(Qp, [-5 + o, o, 5 + o].map((v, i) => ({ v, label: `action ${i + 1}`, color: i === 2 ? '#2a78d6' : '#c9c9c4' })), { fv: (v) => fmt(v, 0) }); Qp.textPx('largest → action 3', Qp.W / 2, 12, { color: '#1f5fae', font: '500 12px "IBM Plex Sans"' }); }
+    function drawQ() { const o = off.v; UL.bars(Qp, [2 + o, 4 + o, 6 + o].map((v, i) => ({ v, label: `advert ${String.fromCharCode(65 + i)}`, color: i === 2 ? '#2a78d6' : '#c9c9c4' })), { fv: (v) => fmt(v, 0) }); Qp.textPx('largest → advert C', Qp.W / 2, 12, { color: '#1f5fae', font: '500 12px "IBM Plex Sans"' }); }
     function run() {
       const o = off.v, a = sim(o, false), b = sim(o, true);
       UL.chart(C, [{ data: a, color: '#c0392b' }, { data: b, color: '#2a78d6' }], { x0: 0, xmax: 300, ymin: 0, ymax: 1, xlabel: 'update', ylabel: 'probability of the best action' });
-      foot.innerHTML = `Rewards ${fmt(-5 + o, 0)}, ${fmt(o, 0)}, ${fmt(5 + o, 0)}. After 300 updates the best action has probability <b class="neg">${a[300].toFixed(2)}</b> without a baseline and <b class="pos">${b[300].toFixed(2)}</b> with one.${o >= 50 ? ' Without the baseline every action it tries gets pushed up hard, so whatever it tried first wins.' : ''}`;
+      foot.innerHTML = `Average rewards ${fmt(2 + o, 0)}, ${fmt(4 + o, 0)}, ${fmt(6 + o, 0)}. After 300 updates the best advert has probability <b class="neg">${a[300].toFixed(2)}</b> without a baseline and <b class="pos">${b[300].toFixed(2)}</b> with one.${o >= 20 ? ' Without the baseline every advert it tries gets pushed up hard, so whichever it happened to try early wins.' : ''}`;
     }
     $('#bl-run').addEventListener('click', run); drawQ(); run();
   })();
@@ -87,7 +87,7 @@
     function draw() {
       const probs = {}; for (const s of g.states()) probs[s] = L.pi(s);
       A.draw({ probs }); B.draw({ V: L.V, vNums: true, vmin: -4.5 });
-      UL.chart(C, [{ data: L.curve, color: '#c9c9c4', w: 1 }, { data: UL.smooth(L.curve, 10), color: '#c0392b' }], { xmax: 350, ymin: -21, ymax: 0, hline: -7, xlabel: 'episode' });
+      UL.chart(C, [{ data: L.curve, color: '#c9c9c4', w: 1 }, { data: UL.smooth(L.curve, 10), color: '#c0392b' }], { xmax: 350, ymin: -26, ymax: 0, hline: -7, xlabel: 'episode' });
     }
     let acc = 0; const loop = UL.loop((dt) => { acc += dt * sp.v; let k = 0; while (acc > 1 && L.ep < 350) { acc--; L.episode(); k++; } if (k) draw(); if (L.ep >= 350) { $('#ac-play').textContent = 'Train'; return false; } });
     $('#ac-play').addEventListener('click', (e) => { if (loop.on) { loop.stop(); e.target.textContent = 'Train'; } else { if (L.ep >= 350) reset(); loop.start(); e.target.textContent = 'Pause'; } });
@@ -112,7 +112,7 @@
     }
     function draw(res) {
       if (!res) { C.clear(); C.textPx('press "Run" to compare', C.W / 2, C.H / 2, { color: '#a3a3a0', font: '13px "IBM Plex Sans"' }); return; }
-      UL.chart(C, F.map(([k, , c]) => ({ data: UL.smooth(res[k], 10), color: c })), { xmax: 300, ymin: -21, ymax: 0, hline: -7, hlabel: 'best possible −7', xlabel: 'episode', ylabel: 'total reward (average of 20 runs)' });
+      UL.chart(C, F.map(([k, , c]) => ({ data: UL.smooth(res[k], 10), color: c })), { xmax: 300, ymin: -26, ymax: 0, hline: -7, hlabel: 'best possible −7', xlabel: 'episode', ylabel: 'total reward (average of 20 runs)' });
       UL.stats('fm-stats', F.map(([k, n]) => ({ k: `${n}: last 50`, v: fmt(res[k].slice(-50).reduce((a, b) => a + b, 0) / 50, 2) })));
     }
     $('#fm-run').addEventListener('click', () => {
@@ -129,7 +129,7 @@
 
   UL.quiz('quiz-box', [
     { q: 'Why can Q-learning not handle a continuous action such as a steering angle directly?', o: ['It has no reward', 'It would have to take the max over infinitely many actions', 'It cannot explore', 'It needs a world model'], a: 1, why: 'Policy methods instead keep a distribution over numbers and adjust it.' },
-    { q: 'Rewards 95, 100, 105. A policy gradient without a baseline…', o: ['learns exactly as with −5, 0, +5', 'pushes every tried action up hard, and can get stuck on the wrong one', 'stops learning because rewards are positive', 'needs ε-greedy'], a: 1, why: 'The size of the push is the size of the reward; the difference of 5 is buried under the 100 all actions share.' },
+    { q: 'Average rewards 52, 54, 56. A policy gradient without a baseline…', o: ['learns exactly as with 2, 4, 6', 'pushes every tried action up hard, and can get stuck on the wrong one', 'stops learning because rewards are positive', 'needs ε-greedy'], a: 1, why: 'The size of the push is the size of the reward; the differences of 2 are buried under the 50 all actions share.' },
     { q: 'In the softmax policy, you raise the preference of action 3. What happens to actions 1 and 2?', o: ['Nothing', 'Their probabilities go down', 'Their probabilities go up', 'They are removed'], a: 1, why: 'The probabilities must add up to 1: a tug of war.' },
     { q: 'Which choice of Ψ is the TD error?', o: ['G', 'G − V(S)', 'Q(S,A) − V(S)', 'R + γV(S′) − V(S)'], a: 3, why: 'Rung 4 of the ladder: the advantage estimated with V only.' },
     { q: 'In an actor–critic, what does the critic do?', o: ['Chooses actions', 'Learns V and sends the TD error to the actor (and to itself)', 'Stores the world model', 'Sets ε'], a: 1, why: 'The actor acts; the critic evaluates. One signal, δ, teaches both.' },
