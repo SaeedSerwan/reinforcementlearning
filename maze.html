@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reinforcement Lab · A grid maze and Monte Carlo</title>
+  <meta name="description" content="Learn reinforcement learning on a small grid maze: world models, sampling, returns, Q-tables, exploration and Monte Carlo control, all interactive.">
+  <meta name="author" content="Eng. Saeed Serwan Abdulsattar">
+  <meta property="og:title" content="Reinforcement Lab · A grid maze and Monte Carlo">
+  <meta property="og:description" content="Learn reinforcement learning on a small grid maze: world models, sampling, returns, Q-tables, exploration and Monte Carlo control, all interactive.">
+  <meta property="og:image" content="assets/img/favicon-512.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="assets/img/utb-logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/favicon-180.png">
+  <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img class="brand-logo" src="assets/img/utb-logo.svg" alt="University of Technology Bahrain logo" onerror="this.remove()">
+    <span class="brand-title">Reinforcement Lab</span>
+  </a>
+  <nav class="page-tabs" aria-label="Lessons">
+    <a href="index.html">Overview</a>
+    <a href="maze.html" class="active" aria-current="page">The maze & Monte Carlo</a>
+    <a href="td.html">Temporal difference</a>
+    <a href="policy.html">Policy gradients</a>
+    <a href="pendulum.html">Inverted pendulum</a>
+    <a href="brain.html">Brain & limits</a>
+    <a href="code-qlearning.html">Q-learning in Python</a>
+    <a href="code-pendulum.html">Pendulum in Python</a>
+  </nav>
+  <nav class="top-links">
+    <a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="Contents">
+    <p class="toc-title">The maze & Monte Carlo</p>
+    <ol>
+      <li><a href="#task">The task</a></li>
+      <li><a href="#model">World models: what we see, what the agent sees</a></li>
+      <li><a href="#random">Starting from nothing: random actions</a></li>
+      <li><a href="#returns">One lucky trajectory, and its returns</a></li>
+      <li><a href="#improve">From experience to a better policy</a></li>
+      <li><a href="#risk">A value is an average</a></li>
+      <li><a href="#qtable">Evaluation by averaging: the Q-table</a></li>
+      <li><a href="#explore">Exploration versus exploitation</a></li>
+      <li><a href="#settle">Too little exploration: settling for less</a></li>
+      <li><a href="#mc">Algorithm 1: Monte Carlo control</a></li>
+      <li><a href="#credit">A problem: who deserves the credit?</a></li>
+      <li><a href="#quiz">Check yourself</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Part 3</p>
+      <h1>A small maze, <em>and the simplest way to learn.</em></h1>
+      <p class="lead">
+        On a grid, every state is one square, so everything can be drawn. This tiny maze is enough to meet the big ideas:
+        world models, sampling, returns, value functions, exploration versus exploitation, and the first learning algorithm, <strong>Monte Carlo</strong>.
+      </p>
+      <div class="learn-grid cols-5">
+        <div><span class="num">01</span>A world model, and why our agent does not have one</div>
+        <div><span class="num">02</span>Sampling trajectories and computing returns backwards</div>
+        <div><span class="num">03</span>Learning a Q-table by averaging returns</div>
+        <div><span class="num">04</span>Exploration: why ε matters, and what happens without it</div>
+        <div><span class="num">05</span>Monte Carlo control, trained live</div>
+      </div>
+    </section>
+
+    <section id="task" class="chapter">
+      <h2><span class="chap">01</span>The task</h2>
+      <p>Five columns, three rows and one wall. The rat starts bottom left and must reach the cheese bottom right. It can move up, down, left or right; a move into the wall or off the grid leaves it where it is. An episode ends at the cheese or after 20 steps.</p>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th>MDP part</th><th>In this maze</th></tr></thead>
+        <tbody>
+          <tr><td><strong>State</strong></td><td>Two numbers: the coordinates (column, row)</td></tr>
+          <tr><td><strong>Action</strong></td><td>One number 0–3: up, down, left, right</td></tr>
+          <tr><td><strong>Reward</strong></td><td>0 for entering the cheese square, −1 for every other step</td></tr>
+          <tr><td><strong>Episode</strong></td><td>Ends at the cheese or after 20 steps</td></tr>
+        </tbody>
+      </table></div>
+      <p>Why −1 per step? Because then the total reward is minus the number of steps used. Maximising it means: get there as fast as possible. The shortest route is 8 moves: total −7.</p>
+    </section>
+
+    <section id="model" class="chapter">
+      <h2><span class="chap">02</span>World models: what we see, what the agent sees</h2>
+      <p>We solve the maze at a glance because we <em>understand</em> it: the numbers are coordinates, 3 means "right", walls block. An agent that knows this has a <strong>world model</strong>: the function \(p(s', r \mid s, a)\) that says what happens after each action. The methods on this page are <strong>model-free</strong>: the agent does not have that function. States and actions are meaningless numbers to it.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Ask the world model</p><p class="lab-hint">Click a square, choose an action. We can answer; the agent has to find out by trying.</p></div>
+        <div class="controls">
+          <div class="seg" id="wm-a"><button data-v="0">0 · up</button><button data-v="1">1 · down</button><button data-v="2">2 · left</button><button data-v="3" class="on">3 · right</button></div>
+          <div class="seg" id="wm-view"><button data-v="ours" class="on">What we see</button><button data-v="agent">What the agent sees</button></div>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="wm-grid"></div><div id="wm-out" class="calc"></div></div></div>
+      </div>
+    </section>
+
+    <section id="random" class="chapter">
+      <h2><span class="chap">03</span>Starting from nothing: random actions</h2>
+      <p>With no information, the agent can only choose at random: every action has probability ¼ in every state. Most episodes go nowhere. But the agent <strong>writes down</strong> everything that happens. Trying actions is called <strong>sampling</strong>; the recorded sequences are <strong>trajectories</strong>. Now and then, by luck, one reaches the cheese, and those are the valuable ones.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The random rat</p><p class="lab-hint">Watch one episode, or sample a thousand and count.</p></div>
+        <div class="controls">
+          <button class="btn" id="rnd-one">Play one episode</button>
+          <button class="btn ghost" id="rnd-many">Sample 1,000 episodes</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="rnd-grid"></div><div><div class="stats" id="rnd-stats"></div><div class="plot" id="rnd-hist"></div><p class="plot-cap"><b>Total reward</b> of the sampled episodes</p></div></div></div>
+      </div>
+    </section>
+
+    <section id="returns" class="chapter">
+      <h2><span class="chap">04</span>One lucky trajectory, and its returns</h2>
+      <p>Here is a lucky random episode: 11 steps, three bumps, and the last step enters the cheese. Compute the return of every step with \(\gamma = 0.8\), <strong>backwards</strong>: \(G_t = R_{t+1} + \gamma\,G_{t+1}\).</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Returns, step by step</p><p class="lab-hint">Each row needs only its own reward and the row below it.</p></div>
+        <div class="controls">
+          <button class="btn" id="lk-next">Next step</button><button class="btn ghost" id="lk-all">All</button><button class="btn ghost small" id="lk-reset">Reset</button>
+          <span class="status" id="lk-status"></span>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="lk-grid"></div><div class="table-wrap" style="margin:0"><table class="clean mono" id="lk-table"></table></div></div></div>
+      </div>
+      <div class="callout"><span class="label">Look closely</span><p>Even this <em>successful</em> episode has only negative returns: every reward but the last is −1. "Good" is relative: −2.44 is good when the alternative is about −4.9, the return of a failed episode.</p></div>
+    </section>
+
+    <section id="improve" class="chapter">
+      <h2><span class="chap">05</span>From experience to a better policy</h2>
+      <p>How do we use the returns? The direct idea: push up the probability of actions followed by good returns, push down those followed by bad ones (a <strong>policy gradient</strong>, <a href="policy.html">Part 5</a>). But "good" needs a reference point: is −2.4 good? Only compared with what we <em>expected</em>. That expected return is a <strong>value function</strong>:</p>
+      <div class="formula">\[ v_\pi(s) = \mathbb{E}_\pi\!\left[G_t \mid S_t = s\right] \qquad q_\pi(s,a) = \mathbb{E}_\pi\!\left[G_t \mid S_t = s,\ A_t = a\right] \]</div>
+      <dl class="symbols">
+        <dt>V(s)</dt><dd>state value: the return to expect from square s, then following the policy π</dd>
+        <dt>Q(s, a)</dt><dd>action value: the return to expect after taking action a in square s, then following π</dd>
+        <dt>v*, q*</dt><dd>the same for the best possible policy</dd>
+      </dl>
+      <div class="cards">
+        <div class="card"><span class="n">policy only</span><h4>Policy gradient, no baseline</h4><p>Pushes probabilities with raw returns. Unreliable (<a href="policy.html#baseline">see why</a>).</p></div>
+        <div class="card"><span class="n">policy + value</span><h4>Policy gradient with a baseline</h4><p>Compares each return with the expected one. Usually the strongest: <a href="policy.html">Part 5</a>.</p></div>
+        <div class="card"><span class="n">value only · this page</span><h4>Action-value method</h4><p>Learn Q, then in each square pick the action with the highest Q. Lets us study <strong>evaluation</strong> first.</p></div>
+      </div>
+    </section>
+
+    <section id="risk" class="chapter">
+      <h2><span class="chap">06</span>A value is an average</h2>
+      <p>A value function stores the <strong>average</strong> return, and nothing else. Two actions can have the same value and very different risks.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Same value, different risk</p><p class="lab-hint">A: the long safe way, always about −4. B: a door that is open half the time: −1.5 or −6.5.</p></div>
+        <div class="controls"><button class="btn" id="rk-go">Sample 10 more</button><button class="btn ghost small" id="rk-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="rk-a"></div><p class="plot-cap"><b>Action A</b></p></div><div><div class="plot" id="rk-b"></div><p class="plot-cap"><b>Action B</b></p></div></div></div>
+        <div class="lab-foot" id="rk-foot"></div>
+      </div>
+      <p class="prose" style="color:var(--muted);font-size:.92rem">Research areas such as <em>distributional RL</em> (keep the whole histogram) and <em>Bayesian RL</em> (keep the uncertainty of each estimate) try to keep this lost information.</p>
+    </section>
+
+    <section id="qtable" class="chapter">
+      <h2><span class="chap">07</span>Evaluation by averaging: the Q-table</h2>
+      <p>The simplest way to estimate Q: keep one entry per square and action (12 squares × 4 actions = 48 numbers, all zero at the start) and, for every new return, move the entry a small step towards it:</p>
+      <div class="formula">\[ Q(S_t, A_t) \leftarrow Q(S_t, A_t) + \alpha\,\big(G_t - Q(S_t, A_t)\big) \]</div>
+      <p>Each square is drawn as four triangles, one per action. Darker red = more negative. Apply the lucky episode, one entry at a time.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Update the table</p><p class="lab-hint">Working backwards through the lucky episode, α = 0.1.</p></div>
+        <div class="controls"><button class="btn" id="qt-next">Next update</button><button class="btn ghost" id="qt-all">All</button><button class="btn ghost small" id="qt-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="qt-grid"></div><div id="qt-calc" class="calc"></div></div></div>
+        <div class="lab-foot">Something uncomfortable: every entry we touched became negative, while untried actions are still 0. After this <em>good</em> episode, the actions that led to the cheese look <strong>worse</strong> than the untried ones. It sorts itself out as untried actions get tried and get their own, more negative, values.</div>
+      </div>
+      <h3>Evaluation and improvement feed each other</h3>
+      <p class="prose">Our policy picks the action with the highest Q. A better Q gives a better policy; a new policy needs a new evaluation. Round and round: <strong>generalised policy iteration</strong>. It settles when Q = q*, and then the greedy policy is optimal.</p>
+    </section>
+
+    <section id="explore" class="chapter">
+      <h2><span class="chap">08</span>Exploration versus exploitation</h2>
+      <p>If the agent always picks the highest-rated action, it never tries anything new, and whatever is wrong in the table stays wrong. It needs a balance: <strong>explore</strong> to improve, <strong>exploit</strong> to do well. The simple trick is <strong>ε-greedy</strong>: with probability ε choose a random action, otherwise the best one. Start with ε = 0.9 (the table is still wrong), end with ε = 0.1.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Same knowledge, three exploration rates</p><p class="lab-hint">All three rats already have the correct table. Only ε differs.</p></div>
+        <div class="controls"><button class="btn" id="ex-play">Play</button><button class="btn ghost small" id="ex-reset">Reset</button><label class="ctl">speed <input type="range" id="ex-speed" min="1" max="20" value="6"><output></output></label></div>
+        <div class="lab-body"><div class="lab-grid three"><div><div class="plot" id="ex-0"></div><p class="plot-cap" id="ex-c0"></p></div><div><div class="plot" id="ex-1"></div><p class="plot-cap" id="ex-c1"></p></div><div><div class="plot" id="ex-2"></div><p class="plot-cap" id="ex-c2"></p></div></div></div>
+      </div>
+      <div class="callout"><span class="label">Check</span><p>With ε = 0.2 and four actions, the best action is chosen with probability 0.8 + 0.2/4 = <strong>0.85</strong>, not 0.8: the random choice can pick it too.</p></div>
+    </section>
+
+    <section id="settle" class="chapter">
+      <h2><span class="chap">09</span>Too little exploration: settling for less</h2>
+      <p>Why not simply set ε = 0 and always take the best action? Because "best" only means <em>best among what the agent has tried</em>. If it stops exploring too early, it locks onto the first thing that worked and never finds out that something far better exists.</p>
+      <p>A new maze shows it. There are now <strong>two</strong> cheeses: a small one (+1) just two steps from the start, and a big one (+10) at the far end. Every step costs 0 and γ = 0.9, so the big cheese is clearly better: worth about \(10 \times 0.9^5 \approx 5.9\) from the start, against \(1 \times 0.9 = 0.9\) for the small one. The learner is Q-learning; only the exploration schedule changes.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Will the agent find the big cheese?</p><p class="lab-hint">Pick an exploration schedule and train for 300 episodes. Arrows: the greedy policy. Blue: the best value in each square.</p></div>
+        <div class="controls">
+          <div class="seg" id="st-mode">
+            <button data-v="greedy">ε = 0 (always greedy)</button>
+            <button data-v="low">ε = 0.1 (fixed)</button>
+            <button data-v="fast">ε drops to 0 after 15 episodes</button>
+            <button data-v="good" class="on">ε from 1 down to 0.05</button>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="st-play">Train</button><button class="btn ghost small" id="st-reset">Reset</button>
+          <label class="ctl">speed <input type="range" id="st-speed" min="1" max="60" value="15"><output></output></label>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="st-grid"></div></div><div><div class="stats" id="st-stats"></div><div class="plot" id="st-curve"></div><p class="plot-cap"><b>Reward per episode</b>: +1 = small cheese, +10 = big cheese</p></div></div></div>
+        <div class="lab-foot" id="st-foot"></div>
+      </div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">One run is luck. Fifty runs are evidence.</p><p class="lab-hint">Each schedule is trained 50 times (300 episodes each). How often does the final greedy policy go to the big cheese?</p></div>
+        <div class="controls"><button class="btn" id="st-many">Run 4 × 50 runs</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="st-bars"></div><div class="stats" id="st-many-stats"></div></div></div>
+        <div class="lab-foot" id="st-many-foot">The agents with too little exploration did not fail to learn: they learned perfectly well how to reach the small cheese. They never <em>saw</em> the big one, so as far as they know, the small cheese is the best there is.</div>
+      </div>
+      <div class="callout warn"><span class="label">The lesson</span><p>A greedy agent can only exploit what it has already discovered. Early on its estimates are poor, so it must explore a lot; only once it has seen enough of the world can it safely stop. Explore too little, or stop too soon, and it converges to a <strong>deterministic policy that is not optimal</strong>, and is completely confident about it.</p></div>
+      <div class="callout"><span class="label">Why did the first maze not have this problem?</span><p>There every step cost −1, so a Q-value of 0 for an untried action looked <em>better</em> than any tried one: the zeros were optimistic and pushed the agent to try everything. Here the first reward found is positive, so the zeros are pessimistic: once the small cheese is found, nothing else looks attractive.</p></div>
+    </section>
+
+    <section id="mc" class="chapter">
+      <h2><span class="chap">10</span>Algorithm 1: Monte Carlo control</h2>
+      <p><strong>Monte Carlo</strong> is the general name for methods that use repeated random sampling. Here: generate a whole episode with ε-greedy, then go backwards through it, moving every visited entry towards its return.</p>
+      <div class="formula">\[ \begin{aligned} &\text{for } t = T{-}1, \dots, 1, 0: \\ &\qquad G \leftarrow R_{t+1} + \gamma\, G \\ &\qquad Q(S_t,A_t) \leftarrow Q(S_t,A_t) + \alpha\,\big(G - Q(S_t,A_t)\big) \end{aligned} \]</div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Train it</p><p class="lab-hint">300 episodes, α = 0.1, γ = 0.8, ε from 0.9 down to 0.1. Click squares to add or remove walls.</p></div>
+        <div class="controls">
+          <button class="btn" id="mc-play">Train</button><button class="btn ghost" id="mc-one">One episode</button><button class="btn ghost small" id="mc-reset">Reset</button>
+          <label class="ctl">speed <input type="range" id="mc-speed" min="1" max="60" value="8"><output></output></label>
+          <label class="check"><input type="checkbox" id="mc-arrows" checked> greedy arrows</label>
+          <label class="check"><input type="checkbox" id="mc-nums"> numbers</label>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="mc-grid"></div><div><div class="stats" id="mc-stats"></div><div class="plot" id="mc-curve"></div><p class="plot-cap"><b>Total reward per episode</b> (grey) and the average of the last 10 (red)</p></div></div></div>
+        <div class="lab-foot" id="mc-foot">Random sampling, averaging, and mostly choosing what looked best: enough to solve the maze from meaningless numbers. Not perfectly, and slowly: <a href="td.html">Part 4</a> shows why.</div>
+      </div>
+    </section>
+
+    <section id="credit" class="chapter">
+      <h2><span class="chap">11</span>A problem: who deserves the credit?</h2>
+      <p>Monte Carlo judges whole episodes. In a good episode <em>every</em> action is rated up, including the wasted moves; in a bad episode every action is rated down, including the good ones. It can only hope that many episodes average this out.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Exercise: one table update</p><p class="lab-hint">Trajectory: (4,3) left → (3,3) right → (4,3) down → (4,2) right → (5,2) down → cheese. γ = 0.8, α = 0.1.</p></div>
+        <div class="lab-body">
+          <p style="margin:0 0 .6rem">The entry Q((4,3), left) is −0.5. Step 0 moved <em>away</em> from the cheese. What is the new value after this episode?</p>
+          <div class="btn-row" id="cr-opts"><button class="btn ghost" data-v="0">−0.25</button><button class="btn ghost" data-v="1">−0.745</button><button class="btn ghost" data-v="2">−2.952</button><button class="btn ghost" data-v="3">−0.5 (unchanged)</button></div>
+          <p class="reveal" id="cr-why" hidden></p>
+        </div>
+      </div>
+      <p>Which action in a long sequence deserves the credit or the blame? This is the <strong>credit assignment problem</strong>, and it is where <a href="td.html">temporal difference</a> starts.</p>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">12</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="td.html">
+        <span class="next-eyebrow">Next · Part 4</span>
+        <span class="next-title">Temporal difference →</span>
+        <span class="next-text">Judge every step against the next estimate, instead of waiting for the end.</span>
+      </a>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <img class="footer-logo" src="assets/img/utb-logo.svg" alt="" onerror="this.remove()">
+    <div>
+      <p><strong>Reinforcement Lab</strong>: an open, interactive companion to <em>CSIT843A Lecture 5: Reinforcement Learning</em>.</p>
+      <p>Created by <strong>Eng. Saeed Serwan Abdulsattar</strong>, College of Computer Studies, University of Technology Bahrain.</p>
+      <p><a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener">Source on GitHub</a> · MIT License</p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/vendor/katex/katex.min.js"></script>
+<script src="assets/vendor/katex/auto-render.min.js"></script>
+<script src="assets/js/lib.js"></script>
+<script src="assets/js/maze.js"></script>
+</body>
+</html>

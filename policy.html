@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reinforcement Lab · Policy gradients and actor–critic</title>
+  <meta name="description" content="Policy gradients and actor–critic methods explained with live experiments: baselines, softmax, continuous actions, the advantage and an actor–critic on a maze.">
+  <meta name="author" content="Eng. Saeed Serwan Abdulsattar">
+  <meta property="og:title" content="Reinforcement Lab · Policy gradients and actor–critic">
+  <meta property="og:description" content="Policy gradients and actor–critic methods explained with live experiments: baselines, softmax, continuous actions, the advantage and an actor–critic on a maze.">
+  <meta property="og:image" content="assets/img/favicon-512.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="assets/img/utb-logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/favicon-180.png">
+  <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img class="brand-logo" src="assets/img/utb-logo.svg" alt="University of Technology Bahrain logo" onerror="this.remove()">
+    <span class="brand-title">Reinforcement Lab</span>
+  </a>
+  <nav class="page-tabs" aria-label="Lessons">
+    <a href="index.html">Overview</a>
+    <a href="maze.html">The maze & Monte Carlo</a>
+    <a href="td.html">Temporal difference</a>
+    <a href="policy.html" class="active" aria-current="page">Policy gradients</a>
+    <a href="pendulum.html">Inverted pendulum</a>
+    <a href="brain.html">Brain & limits</a>
+    <a href="code-qlearning.html">Q-learning in Python</a>
+    <a href="code-pendulum.html">Pendulum in Python</a>
+  </nav>
+  <nav class="top-links">
+    <a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="Contents">
+    <p class="toc-title">Policy gradients</p>
+    <ol>
+      <li><a href="#why">Why go back to the policy?</a></li>
+      <li><a href="#baseline">The baseline problem</a></li>
+      <li><a href="#objective">No target to aim at: an objective</a></li>
+      <li><a href="#gradient">The policy gradient</a></li>
+      <li><a href="#factor1">Factor 1: making an action more likely</a></li>
+      <li><a href="#factor2">Factor 2: how good was the action?</a></li>
+      <li><a href="#ac">Actor and critic</a></li>
+      <li><a href="#families">The three families on the maze</a></li>
+      <li><a href="#quiz">Check yourself</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Part 5</p>
+      <h1>Policy gradients <em>and actor–critic.</em></h1>
+      <p class="lead">
+        Back to the direct idea: keep a probability for every action and adjust the probabilities themselves. Push up what did well,
+        push down what did badly. Then combine both routes: an <strong>actor</strong> that chooses and a <strong>critic</strong> that judges.
+      </p>
+      <div class="learn-grid cols-5">
+        <div><span class="num">01</span>Why a policy can be learned directly</div>
+        <div><span class="num">02</span>The baseline problem, and why Q-learning never had it</div>
+        <div><span class="num">03</span>The policy gradient, read piece by piece</div>
+        <div><span class="num">04</span>Softmax and continuous actions</div>
+        <div><span class="num">05</span>Actor and critic learning together from one TD error</div>
+      </div>
+    </section>
+
+    <section id="why" class="chapter">
+      <h2><span class="chap">01</span>Why go back to the policy?</h2>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th></th><th>Value-based (Part 4)</th><th>Policy gradient (this part)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>The policy is</strong></td><td>implicit: "take the action with the highest Q"</td><td>explicit: a probability for every action</td></tr>
+          <tr><td><strong>Randomness</strong></td><td>added artificially (ε-greedy), and blind</td><td>built in: promising actions are tried more often</td></tr>
+          <tr><td><strong>Continuous actions</strong></td><td>no: you cannot take a max over infinitely many actions</td><td>yes: a probability distribution over numbers</td></tr>
+          <tr><td><strong>What is learned</strong></td><td>a value function</td><td>the policy itself (often with a value function to help)</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="baseline" class="chapter">
+      <h2><span class="chap">02</span>The baseline problem</h2>
+      <p>"Push up actions with good returns" needs to know what counts as good. Three actions, average returns −5, 0 and +5: easy. Now add 100 to everything: 95, 100, 105. Nothing about which action is better has changed, but every action is followed by a large positive number. Try it.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">A learner that pushes probabilities</p><p class="lab-hint">Three actions; the learner sees rewards (plus a little noise) and adjusts the probabilities directly. Step size 0.02, 300 updates, average of 200 runs.</p></div>
+        <div class="controls">
+          <label class="ctl">add to every reward <input type="range" id="bl-off" min="0" max="100" step="5" value="100"><output></output></label>
+          <button class="btn" id="bl-run">Run</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="bl-curve"></div><div class="legend" id="bl-leg"></div></div><div><div class="plot" id="bl-q"></div><p class="plot-cap"><b>Q-learning</b> only asks which value is the largest</p></div></div></div>
+        <div class="lab-foot" id="bl-foot"></div>
+      </div>
+      <p>So the baseline is not decoration. For Q-learning the offset never mattered: it only asks <em>which</em> value is largest. A policy gradient moves probabilities by <em>how much</em> each action was worth, so it needs "better or worse than usual".</p>
+    </section>
+
+    <section id="objective" class="chapter">
+      <h2><span class="chap">03</span>No target to aim at: an objective</h2>
+      <p>When we learned values, there was always a target to move towards. For a policy there is none: nobody knows the "correct" probability of going left. So instead of a loss to minimise we pick something to <strong>maximise</strong>: the objective \(J(\theta)\), how much reward the policy collects on average. \(\theta\) are the policy's adjustable numbers. Sources define J in several ways; they all mean the same thing:</p>
+      <div class="table-wrap"><table class="clean">
+        <tbody>
+          <tr><td>\(J(\theta) = \mathbb{E}[G_0]\)</td><td>the expected total reward of a whole episode</td></tr>
+          <tr><td>\(J(\theta) = V_\pi(s_0)\)</td><td>the value of the start state</td></tr>
+          <tr><td>\(J(\theta) = \sum_s d_\pi(s)\, V_\pi(s)\)</td><td>the average value of the states the policy visits</td></tr>
+          <tr><td>\(J(\theta) = \lim_{T\to\infty} \tfrac{1}{T}\,\mathbb{E}\big[\sum_{t=1}^{T} R_t\big]\)</td><td>the average reward per time step (tasks that never end)</td></tr>
+        </tbody>
+      </table></div>
+      <p>The learning curves on this site are pictures of J. Computing J is easy and not very useful; the point is the direction in which to change θ to make J go up: <strong>gradient ascent</strong>.</p>
+    </section>
+
+    <section id="gradient" class="chapter">
+      <h2><span class="chap">04</span>The policy gradient</h2>
+      <p>Working out that direction (the <em>policy gradient theorem</em>) gives a result of this general form. It looks frightening; read it piece by piece.</p>
+      <div class="formula" id="pg-formula">\[ \underbrace{\nabla_\theta J(\theta)}_{\textcolor{#2a78d6}{\text{how to change }\theta}} = \mathbb{E}\Big[\sum_t \underbrace{\nabla_\theta \log \pi_\theta(A_t \mid S_t)}_{\textcolor{#2a78d6}{\text{make the action more likely}}}\ \cdot \underbrace{\Psi_t}_{\textcolor{#2a78d6}{\text{how good it was}}}\Big] \]</div>
+      <p class="big-line" style="font-size:1.25rem">Increase the probability of each action in proportion to how good it was.</p>
+      <p>If Ψ is positive the action becomes more likely; if negative, less likely. The rule actually run, one step at a time: \(\theta \leftarrow \theta + \alpha\, \Psi_t\, \nabla_\theta \log \pi_\theta(A_t \mid S_t)\).</p>
+    </section>
+
+    <section id="factor1" class="chapter">
+      <h2><span class="chap">05</span>Factor 1: making an action more likely</h2>
+      <p><strong>A few separate actions.</strong> Each action has a preference θ; the <strong>softmax</strong> turns preferences into probabilities that add up to 1. Raise one preference and the others' probabilities fall: a tug of war.</p>
+      <div class="formula">\[ \pi(a \mid s) = \frac{e^{\theta_a}}{\sum_b e^{\theta_b}} \]</div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Softmax tug of war</p><p class="lab-hint">Drag the preferences.</p></div>
+        <div class="controls">
+          <label class="ctl">θ₁ <input type="range" id="sm-1" min="-3" max="3" step="0.1" value="0"><output></output></label>
+          <label class="ctl">θ₂ <input type="range" id="sm-2" min="-3" max="3" step="0.1" value="0"><output></output></label>
+          <label class="ctl">θ₃ <input type="range" id="sm-3" min="-3" max="3" step="0.1" value="0"><output></output></label>
+          <button class="btn ghost small" id="sm-push">Push action 3 up (+0.5)</button>
+        </div>
+        <div class="lab-body"><div class="plot" id="sm-plot" style="max-width:560px"></div></div>
+      </div>
+      <p><strong>A continuous action</strong>, such as a motor force: the policy is a bell curve with a mean and a width; an action is a number drawn from it. If a sampled action turned out well, drag the <em>mean</em> towards it; widen the curve if good actions lie far from the mean, narrow it if they are close. A robot with several joints simply has one bell curve per joint.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Learning a continuous action</p><p class="lab-hint">Hidden from the learner: the best action is 1.5. Reward = −(a − 1.5)². Each red dot is one try.</p></div>
+        <div class="controls"><button class="btn" id="ga-play">Learn</button><button class="btn ghost" id="ga-one">One try</button><button class="btn ghost small" id="ga-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="ga-plot"></div><div class="stats" id="ga-stats"></div></div></div>
+      </div>
+    </section>
+
+    <section id="factor2" class="chapter">
+      <h2><span class="chap">06</span>Factor 2: how good was the action?</h2>
+      <p>Ψ has several possible definitions, a ladder in which each rung fixes a problem of the one before:</p>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th>Ψ</th><th>What it fixes</th><th>What is still wrong</th></tr></thead>
+        <tbody>
+          <tr><td>\(G_t\) (REINFORCE)</td><td>the simplest choice</td><td>states differ in average return: high variance (the 95/100/105 problem)</td></tr>
+          <tr><td>\(G_t - V(S_t)\)</td><td>a baseline: fair across states</td><td>must wait for the end of the episode</td></tr>
+          <tr><td>\(Q(S_t,A_t) - V(S_t)\)</td><td>uses TD; this is the <strong>advantage</strong></td><td>two value functions to learn</td></tr>
+          <tr><td>\(R_{t+1} + \gamma V(S_{t+1}) - V(S_t)\)</td><td>only V is needed</td><td>…and it is the <strong>TD error δ</strong> of Part 4</td></tr>
+        </tbody>
+      </table></div>
+      <div class="callout"><span class="label">The advantage</span><p>Not "how good is this action?" but "how much <em>better</em> is it than the average action in this state?" The signed surprise of Part 4 is exactly the number a policy needs.</p></div>
+    </section>
+
+    <section id="ac" class="chapter">
+      <h2><span class="chap">07</span>Actor and critic</h2>
+      <p>The <strong>actor</strong> is the policy: it acts and improves. The <strong>critic</strong> is a value function: it does not act, it judges, using the TD error. One signal, δ, teaches both.</p>
+      <div class="plot" id="ac-diagram" style="max-width:760px;margin:1.4rem 0"></div>
+      <div class="formula">\[ \begin{aligned} \delta &= R + \gamma V(S') - V(S) && \text{(the critic's surprise)} \\ V(S) &\leftarrow V(S) + \beta\,\delta && \text{(critic)} \\ \theta(S, a) &\leftarrow \theta(S, a) + \alpha\,\delta\,\big(\mathbb{1}[a = A] - \pi(a \mid S)\big) && \text{(actor)} \end{aligned} \]</div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Actor and critic learning the maze</p><p class="lab-hint">α = β = 0.2, γ = 0.8. No ε: the randomness is the policy itself.</p></div>
+        <div class="controls"><button class="btn" id="ac-play">Train</button><button class="btn ghost small" id="ac-reset">Reset</button><label class="ctl">speed <input type="range" id="ac-speed" min="1" max="60" value="10"><output></output></label></div>
+        <div class="lab-body"><div class="lab-grid three"><div><div class="plot" id="ac-actor"></div><p class="plot-cap"><b>Actor</b>: arrow length = probability</p></div><div><div class="plot" id="ac-critic"></div><p class="plot-cap"><b>Critic</b>: V(s)</p></div><div><div class="plot" id="ac-curve"></div><p class="plot-cap"><b>Total reward</b> per episode</p></div></div></div>
+      </div>
+    </section>
+
+    <section id="families" class="chapter">
+      <h2><span class="chap">08</span>The three families on the maze</h2>
+      <p>One method from each column of the map in <a href="maze.html#improve">Part 3</a>: REINFORCE with a baseline (policy only, waits for the episode's end), Q-learning (value only) and the one-step actor–critic (both).</p>
+      <div class="lab">
+        <div class="controls"><button class="btn" id="fm-run">Run 20 runs each</button></div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="fm-curve"></div><div class="legend" id="fm-leg"></div></div><div class="stats" id="fm-stats"></div></div></div>
+        <div class="lab-foot">One small maze, with step sizes chosen by a few trials: not a general ranking. The usual observation is that the balanced family tends to be the strongest.</div>
+      </div>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">09</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="pendulum.html">
+        <span class="next-eyebrow">Next · Part 6</span>
+        <span class="next-title">The inverted pendulum →</span>
+        <span class="next-text">Everything so far, on one real control problem.</span>
+      </a>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <img class="footer-logo" src="assets/img/utb-logo.svg" alt="" onerror="this.remove()">
+    <div>
+      <p><strong>Reinforcement Lab</strong>: an open, interactive companion to <em>CSIT843A Lecture 5: Reinforcement Learning</em>.</p>
+      <p>Created by <strong>Eng. Saeed Serwan Abdulsattar</strong>, College of Computer Studies, University of Technology Bahrain.</p>
+      <p><a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener">Source on GitHub</a> · MIT License</p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/vendor/katex/katex.min.js"></script>
+<script src="assets/vendor/katex/auto-render.min.js"></script>
+<script src="assets/js/lib.js"></script>
+<script src="assets/js/policy.js"></script>
+</body>
+</html>

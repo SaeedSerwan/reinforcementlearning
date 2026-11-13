@@ -1,0 +1,196 @@
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Part 6</p>
+      <h1>The inverted pendulum: <em>which push was wrong?</em></h1>
+      <p class="lead">
+        A pole on a cart, a controller that can only push left or right, and a single number when the pole has already fallen.
+        This has been the standard first test for learning controllers for almost sixty years. Try it yourself first, then watch
+        a learner from 1983 work out <strong>which</strong> of its pushes caused the fall and <strong>which way</strong> it should have pushed instead.
+      </p>
+      <div class="learn-grid cols-5">
+        <div><span class="num">01</span>Balance the pole yourself</div>
+        <div><span class="num">02</span>Why hand-written rules are hard</div>
+        <div><span class="num">03</span>From four numbers to 162 boxes</div>
+        <div><span class="num">04</span>How one −1 tells every box which way it should have pushed</div>
+        <div><span class="num">05</span>The 1983 actor–critic, trained live</div>
+      </div>
+    </section>
+
+    <section id="try" class="chapter">
+      <h2><span class="chap">01</span>The problem: try it yourself</h2>
+      <p>A pole is hinged to a cart on a short track. Keep the pole within 12° of vertical and the cart within ±2.4 m. Left alone, the pole falls in about a second. Hold <kbd>←</kbd> or <kbd>→</kbd> (or the buttons) to push the cart. Slow motion helps.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Balance the pole</p><p class="lab-hint">The real task pushes every step, left or right. Here no key means no push, to make it fairer for humans.</p></div>
+        <div class="controls">
+          <div class="btn-row"><button class="btn ghost" id="me-left">◀ push left</button><button class="btn ghost" id="me-right">push right ▶</button></div>
+          <div class="seg" id="me-speed"><button data-v="0.25">¼ speed</button><button data-v="0.5" class="on">½ speed</button><button data-v="1">real time</button></div>
+          <button class="btn" id="me-start">Start</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="me-cart"></div><div><div class="stats" id="me-stats"></div><p class="keyhint">Keyboard: <kbd>←</kbd> <kbd>→</kbd> to push, <kbd>space</kbd> to restart.</p></div></div></div>
+        <div class="lab-foot" id="me-foot"></div>
+      </div>
+      <div class="cards">
+        <div class="card"><span class="n">why this problem</span><h4>Unstable</h4><p>It must act all the time; doing nothing means falling.</p></div>
+        <div class="card"><span class="n">why this problem</span><h4>Easy to state, hard to do</h4><p>Two actions, four numbers, one rule. And yet…</p></div>
+        <div class="card"><span class="n">why this problem</span><h4>A small version of real ones</h4><p>A rocket standing on its engine, a Segway, a walking robot keeping its balance.</p></div>
+        <div class="card"><span class="n">history</span><h4>1968 → 1983</h4><p>Michie &amp; Chambers' BOXES program; Barto, Sutton &amp; Anderson's actor–critic, which we rebuild here.</p></div>
+      </div>
+    </section>
+
+    <section id="physics" class="chapter">
+      <h2><span class="chap">02</span>The physical system</h2>
+      <p>Four numbers describe the system completely: the cart position \(x\), its velocity \(\dot x\), the pole angle \(\theta\) (0 = upright, positive = leaning right) and the angular velocity \(\dot\theta\). The angle alone is not Markov: a pole at 3° that is falling needs a different push from one at 3° that is coming back. The action is a force of ±10 N, 50 times per second.</p>
+      <div class="formula">\[ \ddot\theta = \frac{g\sin\theta - \cos\theta\,\dfrac{F + m l \dot\theta^2 \sin\theta}{M+m}}{l\left(\dfrac43 - \dfrac{m\cos^2\theta}{M+m}\right)}, \qquad \ddot x = \frac{F + m l\big(\dot\theta^2\sin\theta - \ddot\theta\cos\theta\big)}{M+m} \]</div>
+      <p class="prose" style="color:var(--muted);font-size:.92rem">g = 9.8 m/s², cart M = 1 kg, pole m = 0.1 kg, half-length l = 0.5 m, F = ±10 N, time step 0.02 s (Barto, Sutton &amp; Anderson 1983; Gymnasium's CartPole).</p>
+      <p>These equations are the <strong>world model</strong>. A control engineer would start from them. The learner is <strong>not</strong> given them: it does not know there is gravity, a hinge, or what the four numbers mean. We take the model-free route because for many real systems nobody can write such equations down.</p>
+    </section>
+
+    <section id="mdp" class="chapter">
+      <h2><span class="chap">03</span>The pendulum as an MDP</h2>
+      <div class="table-wrap"><table class="clean">
+        <tbody>
+          <tr><td><strong>States</strong></td><td>\((x, \dot x, \theta, \dot\theta)\): continuous, so infinitely many</td></tr>
+          <tr><td><strong>Actions</strong></td><td>push left, push right</td></tr>
+          <tr><td><strong>Failure (end)</strong></td><td>\(|\theta| > 12°\) or \(|x| > 2.4\) m</td></tr>
+        </tbody>
+      </table></div>
+      <p>Two reward conventions lead to the same behaviour. Gymnasium gives +1 for every step the pole is up. Barto, Sutton and Anderson give 0 at every step and −1 at failure. We use the second: the learner's <em>only</em> information is a single −1, when the pole has already fallen.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">What the learner is told</p><p class="lab-hint">The rewards of one random-push trial.</p></div>
+        <div class="controls"><div class="seg" id="rw-mode"><button data-v="barto" class="on">0 every step, −1 at failure</button><button data-v="gym">+1 every step</button></div><button class="btn ghost small" id="rw-new">New trial</button></div>
+        <div class="lab-body"><div class="plot" id="rw-plot"></div></div>
+      </div>
+    </section>
+
+    <section id="hard" class="chapter">
+      <h2><span class="chap">04</span>Why is this hard for a learner?</h2>
+      <div class="cards">
+        <div class="card"><span class="n">1</span><h4>Continuous states</h4><p>A table needs finitely many rows; the pole never visits exactly the same state twice.</p></div>
+        <div class="card"><span class="n">2</span><h4>No teacher</h4><p>Nobody says "you should have pushed left". No labelled examples.</p></div>
+        <div class="card"><span class="n">3</span><h4>Late, unspecific feedback</h4><p>The pole falls at step 23. <em>Which</em> of the 23 pushes was wrong? And was the mistake pushing left or pushing right? The −1 does not say.</p></div>
+      </div>
+      <p>Barto, Sutton and Anderson called this the <strong>credit assignment problem</strong>. The rest of this page is how they solved it.</p>
+    </section>
+
+    <section id="rules" class="chapter">
+      <h2><span class="chap">05</span>A first idea: write the rule by hand</h2>
+      <p>Before any learning: can we just write a rule? The obvious one, "push towards the side the pole leans", overcorrects: it keeps pushing until the pole has passed the vertical, by which time the pole is rotating fast the other way. Adding the angular velocity, reacting to where the pole is <em>going</em>, changes everything.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Hand-written rules</p><p class="lab-hint">All start with the pole at 2°, at rest. The trial stops at 1,000 steps (20 s).</p></div>
+        <div class="controls">
+          <div class="seg" id="hr-rule"><button data-v="rand">Random pushes</button><button data-v="lean" class="on">Push towards the lean</button><button data-v="vel">Push right if θ + k·θ̇ > 0</button></div>
+          <label class="ctl">k <input type="range" id="hr-k" min="0" max="1" step="0.05" value="0.5"><output></output></label>
+          <button class="btn" id="hr-run">Run one trial</button><button class="btn ghost" id="hr-100">Median of 100 trials</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="hr-cart"></div><div><div class="plot" id="hr-plot"></div><div class="stats" id="hr-stats" style="margin-top:.8rem"></div></div></div></div>
+      </div>
+      <p>The velocity matters as much as the position, and finding that (and the 0.5) took insight into the physics. <strong>Can a program discover such a rule by itself, from the failure signal alone?</strong></p>
+    </section>
+
+    <section id="boxes" class="chapter">
+      <h2><span class="chap">06</span>Step 1: make the states countable</h2>
+      <p>The oldest solution (Michie &amp; Chambers, 1968): cut each variable into a few intervals. 3 for the cart position, 3 for its velocity, 6 for the angle (finer near vertical) and 3 for the angular velocity. Every combination is one <strong>box</strong>: 3 × 3 × 6 × 3 = <strong>162 boxes</strong>. The learner is told only the number of the current box. The price: all states inside a box are treated as identical.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The decoder at work</p><p class="lab-hint">A controller pushing with rule 2 and 25% random pushes.</p></div>
+        <div class="controls"><button class="btn" id="bx-play">Play</button></div>
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="bx-cart"></div><div class="agent-view" id="bx-num" style="margin-top:.8rem"></div></div><div class="plot" id="bx-bars"></div></div></div>
+      </div>
+    </section>
+
+    <section id="qboxes" class="chapter">
+      <h2><span class="chap">07</span>Step 2: Q-learning on the boxes</h2>
+      <p>No teacher? We know the answer from Part 4: Q-learning with a table of 162 × 2 entries, all zero, reward −1 at failure. No ε is needed: untried actions (0) always look better than tried ones (negative), so the agent explores by itself: <em>optimistic initialisation</em>. A run counts as solved when the pole stays up for 20,000 steps (400 s).</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Q-learning learns to balance</p><p class="lab-hint">α = 0.5, γ = 0.99, each trial starts from a slightly random state. Each dot is one trial (log scale).</p></div>
+        <div class="controls"><label class="ctl">random seed <input class="num" type="number" id="qb-seed" value="5" min="1" max="999"></label><button class="btn" id="qb-run">Run up to 400 trials</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="qb-plot"></div><div class="stats" id="qb-stats"></div></div></div>
+      </div>
+      <p>It works, with no knowledge of physics. But it usually needs hundreds of falls. Why? In Q-learning, blame travels back <strong>one box at a time</strong>, and only after both actions in the later box have failed. If the real mistake was fifteen steps before the fall, the news needs a long chain of failures to get there.</p>
+    </section>
+
+    <section id="credit" class="chapter">
+      <h2><span class="chap">08</span>Idea 1: a memory with a sign</h2>
+      <p>Barto, Sutton and Anderson give each box two numbers. The <strong>weight</strong> \(w\) is long-term memory, the box's preference: positive pushes right, negative pushes left. The <strong>eligibility</strong> \(e\) is short-term memory: what was done in this box <em>recently</em>, and in <em>which direction</em>. Visiting a box and pushing right adds to its e; pushing left subtracts; every step all e shrink by λ = 0.9.</p>
+      <div class="formula">\[ e_i \leftarrow \lambda\, e_i + (1-\lambda)\big(y - \tfrac12\big)\, x_i \]</div>
+      <p class="prose" style="color:var(--muted);font-size:.92rem">y = 1 for a push to the right, 0 for a push to the left; \(x_i\) = 1 for the current box, 0 for all others. After 20 steps without a visit about 12% of a box's eligibility is left.</p>
+      <h3>Idea 2: reinforcement × eligibility gives the direction</h3>
+      <p class="prose">When a reinforcement \(\hat r\) arrives, <em>every</em> box changes its weight by \(\alpha\,\hat r\, e_i\). A product of two signs. Click a case:</p>
+      <div class="formula">\[ w_i \leftarrow w_i + \alpha\, \hat r\, e_i \qquad (\alpha = 1000) \]</div>
+      <div class="signbox" id="sign-box"></div>
+      <p class="reveal" id="sign-out" style="max-width:640px"></p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The first failure, step by step</p><p class="lab-hint">Trial 1 of a run: random pushes. Bars: the signed eligibility of each box visited. At the fall, the change Δw = α · (−1) · e.</p></div>
+        <div class="controls"><label class="ctl">random seed <input class="num" type="number" id="cr-seed" value="7" min="1" max="999"></label><button class="btn" id="cr-step">Next step</button><button class="btn ghost" id="cr-all">To the fall</button><button class="btn ghost small" id="cr-reset">Restart</button></div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="cr-cart"></div><div class="plot" id="cr-theta"></div></div><div class="plot" id="cr-bars"></div></div></div>
+        <div class="lab-foot" id="cr-foot"></div>
+      </div>
+      <p>One undirected number, \(\hat r = -1\), produces a correctly directed correction in every box, because each box remembers its own direction. Blame makes you do the opposite, praise makes you do the same, in proportion to how recently you acted. The rule is not a judge: some blame lands on innocent pushes, but over many failures wrongly placed blame points in changing directions and cancels out, while deserved blame keeps pointing the same way.</p>
+    </section>
+
+    <section id="critic" class="chapter">
+      <h2><span class="chap">09</span>Idea 3: a critic that predicts trouble</h2>
+      <p>With the raw failure signal, learning happens only at the instant of a fall, when the guilty push may be far back and its eligibility faded. So add a second element that learns to <strong>predict</strong> failure: the critic. For each box it learns \(p\) between −1 (failure is near) and 0 (safe), by TD(0), and turns the rare \(r\) into an internal signal at every step:</p>
+      <div class="formula">\[ \hat r = r + \gamma\, p(\text{new box}) - p(\text{old box}) \qquad (\gamma = 0.95) \]</div>
+      <p>You have seen this formula: it is the <strong>TD error</strong> of Part 4. Moving from a safe box into a dangerous one: \(\hat r < 0\), blame <em>now</em>. Escaping back to safety: \(\hat r > 0\), praise.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The critic warns before the pole falls</p><p class="lab-hint">A trial after some learning: the last 60 steps before a fall.</p></div>
+        <div class="controls"><button class="btn" id="ck-play">Play</button><button class="btn ghost small" id="ck-other">Another trial</button><span class="status" id="ck-status"></span></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="ck-cart"></div><div><div class="plot" id="ck-p"></div><div class="plot" id="ck-r"></div></div></div></div>
+        <div class="lab-foot">Instead of 0, 0, 0, …, −1 the actor now gets a running commentary: worse… better… worse. The blame arrives earlier, while the push that caused the trouble is still eligible.</div>
+      </div>
+    </section>
+
+    <section id="system" class="chapter">
+      <h2><span class="chap">10</span>The complete system: train it</h2>
+      <p>The 1983 architecture: a <strong>decoder</strong> (four numbers → box), an <strong>actor</strong> (ASE: weights and signed eligibilities, chooses the push) and a <strong>critic</strong> (ACE: predictions, sends \(\hat r\)). It is the actor–critic of Part 5 (the eligibility is "the direction that makes the taken action more likely", \(\hat r\) is "how good it was"), discovered before the name existed.</p>
+      <div class="plot" id="sys-diagram" style="max-width:820px;margin:1.2rem 0"></div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Algorithm 5: ASE/ACE, live</p><p class="lab-hint">α = 1000, β = 0.5, γ = 0.95, λ = 0.9, λᵥ = 0.8. Solved = 20,000 steps without failing.</p></div>
+        <div class="controls">
+          <label class="ctl">random seed <input class="num" type="number" id="as-seed" value="13" min="1" max="999"></label>
+          <div class="seg" id="as-speed"><button data-v="watch">Watch every trial</button><button data-v="fast" class="on">Fast</button></div>
+          <button class="btn" id="as-run">Train</button><button class="btn ghost" id="as-watch" disabled>Watch the trained controller</button><button class="btn ghost small" id="as-reset">Reset</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="as-cart"></div><div class="stats" id="as-stats" style="margin-top:.8rem"></div></div><div class="plot" id="as-plot"></div></div></div>
+        <div class="lab-foot">The trained controller is not elegant: the pole wobbles and the cart wanders. It was never asked to be elegant; the reward only says "do not fail". You get what you reward.</div>
+      </div>
+    </section>
+
+    <section id="learned" class="chapter">
+      <h2><span class="chap">11</span>What did it learn?</h2>
+      <p>Open the tables of the trained system (train it above first). A slice through the 162 boxes: cart near the centre and slow. Columns: the pole angle. Rows: the angular velocity.</p>
+      <div class="lab">
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="lr-w"></div><p class="plot-cap"><b>Actor</b>: the learned push in each box</p></div><div><div class="plot" id="lr-v"></div><p class="plot-cap"><b>Critic</b>: predicted danger p (0 = safe, −1 = failure)</p></div></div></div>
+        <div class="lab-foot" id="lr-foot">Train the system in section 10 to fill these tables.</div>
+      </div>
+    </section>
+
+    <section id="compare" class="chapter">
+      <h2><span class="chap">12</span>Does the critic matter?</h2>
+      <p>One run proves little. Run each learner with ten different random seeds, at most 400 trials each.</p>
+      <div class="lab">
+        <div class="controls"><button class="btn" id="cmp-run">Run 3 × 10 seeds</button><span class="status" id="cmp-status"></span></div>
+        <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean" id="cmp-table"></table></div></div>
+        <div class="lab-foot">Two reasons the actor–critic wins: the traces give credit to many recent boxes at once, and the critic gives a learning signal at every step instead of one per failure. And the honest part: results depend on the seed. Never trust a single run.</div>
+      </div>
+    </section>
+
+    <section id="lessons" class="chapter">
+      <h2><span class="chap">13</span>Lessons from the inverted pendulum</h2>
+      <div class="cards">
+        <div class="card"><span class="n">1</span><h4>The pipeline</h4><p>States, actions, reward → make the states manageable → choose an algorithm → run it many times.</p></div>
+        <div class="card"><span class="n">2</span><h4>Credit assignment</h4><p><em>When</em> was the mistake: traces, and a critic that moves the signal earlier. <em>Which direction</em>: the sign of the trace times the sign of the TD error.</p></div>
+        <div class="card"><span class="n">3</span><h4>The reward defines the result</h4><p>We rewarded "do not fail" and got a wobbly controller that does not fail.</p></div>
+        <div class="card"><span class="n">4</span><h4>The limits of tables</h4><p>4 variables gave 162 boxes; 10 variables with 6 intervals each would need 60 million. The boxes were designed by hand.</p></div>
+      </div>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">14</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="brain.html">
+        <span class="next-eyebrow">Next · Parts 7 and 8</span>
+        <span class="next-title">The brain and the limits →</span>
+        <span class="next-text">The TD error turns up in the brain. And what still does not work.</span>
+      </a>
+    </section>

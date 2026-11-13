@@ -1,0 +1,155 @@
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Parts 7 and 8</p>
+      <h1>The brain, <em>and what still does not work.</em></h1>
+      <p class="lead">
+        An algorithm built for engineering reasons turned out to describe a signal in the brain. And a lecture can make reinforcement
+        learning look more finished than it is: here are its honest limits, and two directions people are working on.
+      </p>
+      <div class="learn-grid cols-5">
+        <div><span class="num">01</span>Dopamine behaves like the TD error</div>
+        <div><span class="num">02</span>Actor and critic in the striatum (a hypothesis)</div>
+        <div><span class="num">03</span>Why RL results depend on luck and need so much experience</div>
+        <div><span class="num">04</span>World models and learning from demonstrations</div>
+        <div><span class="num">05</span>The whole lecture in eight lines</div>
+      </div>
+    </section>
+
+    <section id="dopamine" class="chapter">
+      <h2><span class="chap">01</span>Dopamine and a prediction that failed</h2>
+      <p>Dopamine neurons in the midbrain were long thought to signal reward. In the 1980s and 90s Wolfram Schultz recorded them in monkeys: a light comes on, and a little later a drop of juice arrives.</p>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th>Situation</th><th>At the light (cue)</th><th>At the juice</th></tr></thead>
+        <tbody>
+          <tr><td>Before learning: juice arrives unexpectedly</td><td>no response</td><td><strong>burst of firing</strong></td></tr>
+          <tr><td>After learning: light, then juice</td><td><strong>burst of firing</strong></td><td>no response</td></tr>
+          <tr><td>After learning, but the juice is withheld</td><td><strong>burst of firing</strong></td><td><strong>firing drops below normal</strong></td></tr>
+        </tbody>
+      </table></div>
+      <p>"Dopamine = reward" explains only the first row. In 1997 Schultz, Dayan and Montague gave the answer: the neurons behave like the <strong>TD error</strong>, a reward <em>prediction</em> error. Better or worse than expected.</p>
+    </section>
+
+    <section id="tdsim" class="chapter">
+      <h2><span class="chap">02</span>The TD error behaves the same way</h2>
+      <p>Simulate the experiment with the plain TD(0) of <a href="td.html#error">Part 4</a>. Each trial has 20 time steps; before the first cue nothing can be predicted. Move through the trials.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">A TD learner in the monkey experiment</p><p class="lab-hint">α = 0.2, γ = 1.</p></div>
+        <div class="controls">
+          <label class="ctl">trial <input type="range" id="da-n" min="1" max="400" step="1" value="1"><output></output></label>
+          <div class="seg" id="da-cues"><button data-v="1" class="on">One cue (light)</button><button data-v="2">Two cues: instruction, then trigger</button></div>
+          <label class="check"><input type="checkbox" id="da-with"> withhold the juice in this trial</label>
+          <button class="btn ghost small" id="da-play">Play</button>
+        </div>
+        <div class="lab-body"><div class="plot" id="da-v"></div><div class="plot" id="da-d"></div></div>
+        <div class="lab-foot" id="da-foot"></div>
+      </div>
+      <p>With two cues (an instruction cue that says which lever, then a trigger cue that says when), the surprise moves back past the trigger to the instruction cue, as Schultz's recordings did. It stops at the earliest event that reliably predicts the juice: before that, nothing does.</p>
+    </section>
+
+    <section id="striatum" class="chapter">
+      <h2><span class="chap">03</span>Actor and critic in the brain?</h2>
+      <p>A second, less settled link. Deep in the brain, the <strong>striatum</strong> is involved in action planning, decision making, motivation and reward. Two of its parts have been proposed to play the roles of actor and critic: the <strong>dorsolateral striatum</strong> in choosing actions, the <strong>ventral striatum</strong> in prediction. And dopamine, the TD error, reaches both, just as δ teaches both actor and critic.</p>
+      <div class="plot" id="st-diagram" style="max-width:860px;margin:1.4rem 0"></div>
+      <p class="prose" style="color:var(--muted);font-size:.92rem">After Takahashi, Schoenbaum &amp; Niv (2008), "Silencing the critics". Good evidence, but treat it as a hypothesis.</p>
+    </section>
+
+    <section id="luck" class="chapter">
+      <h2><span class="chap">04</span>Limit 1: results depend on luck</h2>
+      <p>The same program with different random numbers can succeed or fail. In supervised learning the data are fixed; an RL agent <strong>creates its own data</strong>. A lucky early success gives good data, which gives a better policy, which gives better data; an unlucky start does the opposite.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Ten runs of the same Q-learner</p><p class="lab-hint">Q-learning on the pendulum boxes of Part 6, identical settings, at most 400 trials. Only the random seed differs.</p></div>
+        <div class="controls"><button class="btn" id="lk-run">Run 10 seeds</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="lk-plot"></div><div class="stats" id="lk-stats"></div></div></div>
+      </div>
+      <p>So: never judge an RL method by one run. Every chart on this site that matters is an average of many runs; see also the <a href="pendulum.html#compare">pendulum comparison</a>.</p>
+    </section>
+
+    <section id="samples" class="chapter">
+      <h2><span class="chap">05</span>Limit 2: sample inefficiency</h2>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th>Task</th><th>Experience the learner needed</th><th>A person</th></tr></thead>
+        <tbody>
+          <tr><td>Small maze (Q-learning)</td><td>about 200 episodes</td><td>solves it by looking at it once</td></tr>
+          <tr><td>Inverted pendulum (actor–critic)</td><td>about 100 falls</td><td>a few tries</td></tr>
+          <tr><td>Atari games (one of the best agents of 2017)</td><td>about 18 million frames: 83 hours of play</td><td>a few minutes</td></tr>
+        </tbody>
+      </table></div>
+      <p>In a simulator, experience costs only computer time. On a real robot, every trial costs time, wear and sometimes damage. Why are people so much faster? We <strong>know how the world works</strong> before we start, and we are often <strong>shown</strong> what to do. Those are the two directions below.</p>
+    </section>
+
+    <section id="worldmodel" class="chapter">
+      <h2><span class="chap">06</span>Direction 1: learning a world model</h2>
+      <p>Without any understanding of the world, a learner has to discover by trial what we see at a glance. Task: let go of a tennis ball above the floor without it touching the table.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">The tennis ball</p><p class="lab-hint">Left: a model-free learner tries release points one by one. Right: anyone who knows that things fall straight down. Red = loses a point.</p></div>
+        <div class="controls"><button class="btn" id="tb-play">Let it try</button><button class="btn ghost small" id="tb-reset">Reset</button><span class="status" id="tb-status"></span></div>
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="tb-free"></div><p class="plot-cap"><b>Without a model</b>: one trial per point</p></div><div><div class="plot" id="tb-model"></div><p class="plot-cap"><b>With a model</b>: 0 trials</p></div></div></div>
+      </div>
+      <div class="cards">
+        <div class="card"><span class="n">getting a model</span><h4>Given</h4><p>When we already know the physics or the rules of a game.</p></div>
+        <div class="card"><span class="n">getting a model</span><h4>Learned</h4><p>Predict the next state and reward from experience, alongside the policy.</p></div>
+        <div class="card"><span class="n">using a model</span><h4>Practise in imagination</h4><p>Train on imagined experience. People improve free throws by imagining them.</p></div>
+        <div class="card"><span class="n">using a model</span><h4>Plan ahead</h4><p>Try possible futures in your head before acting. Value iteration on the maze (<a href="td.html#model">Part 4</a>) is the simplest case.</p></div>
+      </div>
+      <p>The difficulty: a learned model is never exactly right, and a policy trained inside it will find and exploit its mistakes.</p>
+    </section>
+
+    <section id="demos" class="chapter">
+      <h2><span class="chap">07</span>Direction 2: learning from demonstrations</h2>
+      <p>You would not expect a three-year-old to learn to tie shoelaces by trial and error. <strong>Imitation learning</strong> learns from an expert's trajectories instead of a reward. The simplest form, <strong>behavioural cloning</strong>, copies the expert's action in every state it has seen. Its weakness: one small mistake leads to a state the expert never visited, with no example for it, and the errors compound.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Cloning an expert in the big maze</p><p class="lab-hint">Blue squares: states where the clone has an expert example. Click a square to start the clone there.</p></div>
+        <div class="controls"><button class="btn" id="bc-demo">Record one expert run</button><button class="btn ghost" id="bc-run">Run the clone from the start</button><button class="btn ghost" id="bc-dagger">DAgger: ask the expert where the clone went</button><button class="btn ghost small" id="bc-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="bc-grid"></div><div class="stats" id="bc-stats"></div></div></div>
+        <div class="lab-foot" id="bc-foot"></div>
+      </div>
+      <p><strong>DAgger</strong> fixes the gaps: let the learner act, ask the expert what they would have done in the states the <em>learner</em> reached, add those examples, retrain, repeat. More robust, but tedious for the human.</p>
+      <div class="cards">
+        <div class="card"><span class="n">why bother</span><h4>Rewards are hard to write</h4><p>Reward a racing agent only for crossing the finish line and it may drive back and forth across the line. And how would you write a reward for "drive safely and politely"?</p></div>
+        <div class="card"><span class="n">inverse RL</span><h4>Learn the reward instead</h4><p>Watch the expert and infer what goal they must be pursuing; then run ordinary RL on it. One method learned several games from 20–30 demonstrations.</p></div>
+        <div class="card"><span class="n">in practice</span><h4>Combine both</h4><p>A robot learned to catch a ball in a cup: first by imitating a human, then improving by trial and error, about 100 tries.</p></div>
+      </div>
+    </section>
+
+    <section id="summary" class="chapter">
+      <h2><span class="chap">08</span>The whole lecture in eight lines</h2>
+      <div class="table-wrap"><table class="clean">
+        <tbody>
+          <tr><td><a href="index.html#agent">1 · Agent and environment</a></td><td>the agent is what it directly controls; the rest is environment</td></tr>
+          <tr><td><a href="index.html#loop">2 · MDP</a></td><td>states, actions, rewards; a policy; the return; find the policy with the highest return</td></tr>
+          <tr><td><a href="maze.html">3 · Monte Carlo</a></td><td>sample episodes, average returns into a Q-table, act ε-greedily</td></tr>
+          <tr><td><a href="td.html">4 · Temporal difference</a></td><td>compare each step with the estimate of the next: SARSA, Expected SARSA, Q-learning</td></tr>
+          <tr><td><a href="policy.html">5 · Policy gradient, actor–critic</a></td><td>change action probabilities in proportion to how good the action was</td></tr>
+          <tr><td><a href="pendulum.html">6 · Inverted pendulum</a></td><td>boxes; the signed eligibility remembers the direction; the TD error says whether to reverse it</td></tr>
+          <tr><td>7 · The brain</td><td>dopamine neurons behave like a TD error</td></tr>
+          <tr><td>8 · Limits</td><td>unreliable and sample-hungry; world models and demonstrations are the main remedies</td></tr>
+        </tbody>
+      </table></div>
+      <div class="formula">\[ \delta_t = R_{t+1} + \gamma\, V(S_{t+1}) - V(S_t) \]</div>
+      <p>One quantity ran through the second half of the lecture. It trained the Q-table, the critic and the actor, balanced the pole, and turned up in the brain.</p>
+    </section>
+
+    <section id="sources" class="chapter">
+      <h2><span class="chap">09</span>Try it yourself and read further</h2>
+      <ul class="refs">
+        <li><strong>Video:</strong> Gonkee (2024), <a href="https://www.youtube.com/watch?v=VnpRp7ZglfA" target="_blank" rel="noopener">The fastest introduction to reinforcement learning on the internet</a>. This course follows its structure; the mazes, experiments and figures here are our own.</li>
+        <li><strong>Textbook:</strong> Sutton, R. S. &amp; Barto, A. G. (2018). <a href="http://incompleteideas.net/book/the-book-2nd.html" target="_blank" rel="noopener">Reinforcement Learning: An Introduction</a>, 2nd ed., free online. Chapters 3, 5, 6, 12 and 13.</li>
+        <li>Barto, A. G., Sutton, R. S. &amp; Anderson, C. W. (1983). Neuronlike adaptive elements that can solve difficult learning control problems. <em>IEEE Transactions on Systems, Man, and Cybernetics</em>, 13(5), 834–846.</li>
+        <li>Michie, D. &amp; Chambers, R. A. (1968). BOXES: an experiment in adaptive control. <em>Machine Intelligence</em> 2.</li>
+        <li>Watkins, C. J. C. H. &amp; Dayan, P. (1992). Q-learning. <em>Machine Learning</em>, 8, 279–292.</li>
+        <li>Schultz, W., Dayan, P. &amp; Montague, P. R. (1997). A neural substrate of prediction and reward. <em>Science</em>, 275, 1593–1599.</li>
+        <li>Takahashi, Y., Schoenbaum, G. &amp; Niv, Y. (2008). Silencing the critics. <em>Frontiers in Neuroscience</em>, 2(1), 86–99.</li>
+        <li>Irpan, A. (2018). <a href="https://www.alexirpan.com/2018/02/14/rl-hard.html" target="_blank" rel="noopener">Deep reinforcement learning doesn't work yet</a>.</li>
+        <li><strong>Practice:</strong> <a href="https://gymnasium.farama.org" target="_blank" rel="noopener">Gymnasium</a> (FrozenLake, CliffWalking, CartPole-v1) · <a href="https://cs.stanford.edu/people/karpathy/reinforcejs/" target="_blank" rel="noopener">REINFORCEjs</a> gridworld demos in the browser · this site's <a href="code-qlearning.html">Python walkthroughs</a>.</li>
+      </ul>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">10</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="code-qlearning.html">
+        <span class="next-eyebrow">Practice</span>
+        <span class="next-title">Q-learning in Python →</span>
+        <span class="next-text">The maze, Monte Carlo and Q-learning in a runnable notebook, line by line.</span>
+      </a>
+    </section>

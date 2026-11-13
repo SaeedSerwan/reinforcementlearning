@@ -1,0 +1,156 @@
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Part 4</p>
+      <h1>Temporal difference: <em>judge each step, not each episode.</em></h1>
+      <p class="lead">
+        Monte Carlo has to wait for the end of an episode, and it cannot tell good moves from bad ones inside it.
+        The fix is the single most important idea in reinforcement learning: estimate every value <strong>relative to the next one</strong>.
+        It gives us SARSA, Expected SARSA and Q-learning.
+      </p>
+      <div class="learn-grid cols-5">
+        <div><span class="num">01</span>Learning after every step from the next estimate</div>
+        <div><span class="num">02</span>The TD error δ and what its sign means</div>
+        <div><span class="num">03</span>SARSA, Expected SARSA and Q-learning: one line apart</div>
+        <div><span class="num">04</span>On-policy vs off-policy, made visible on the cliff</div>
+        <div><span class="num">05</span>Eligibility traces and planning with a world model</div>
+      </div>
+    </section>
+
+    <section id="idea" class="chapter">
+      <h2><span class="chap">01</span>The idea of temporal difference</h2>
+      <p>Monte Carlo estimates the return in an <em>absolute</em> way: add up all the rewards to the end. Temporal difference (TD) states each estimate <em>relative</em> to the estimate of the next step, with just one reward in between: "my value is the reward I get now, plus the value of where I am next". The terminal state, worth 0, is the anchor that holds the chain in place.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Monte Carlo and TD, side by side</p><p class="lab-hint">The same lucky trajectory, repeated. State values V, α = 0.5, γ = 0.8. Blue frames: updated now.</p></div>
+        <div class="controls"><button class="btn" id="mt-step">Next step</button><button class="btn ghost" id="mt-ep">Finish episode</button><button class="btn ghost small" id="mt-reset">Reset</button><span class="status" id="mt-status"></span></div>
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="mt-mc"></div><p class="plot-cap" id="mt-mc-cap"><b>Monte Carlo</b></p></div><div><div class="plot" id="mt-td"></div><p class="plot-cap" id="mt-td-cap"><b>Temporal difference</b></p></div></div></div>
+      </div>
+      <p>Neither is simply better. Monte Carlo uses the true outcome but must wait; TD learns at once but leans on estimates that may still be wrong (this is called <strong>bootstrapping</strong>). With long or never-ending episodes, waiting is the bigger problem.</p>
+    </section>
+
+    <section id="error" class="chapter">
+      <h2><span class="chap">02</span>The maths and the TD error</h2>
+      <p>The return satisfies \(G_t = R_{t+1} + \gamma G_{t+1}\), so our averaged estimates should satisfy the same relation. We move each estimate a step towards the <strong>TD target</strong>:</p>
+      <div class="formula">\[ \begin{aligned} V(S_t) &\leftarrow V(S_t) + \alpha\,\big[\underbrace{R_{t+1} + \gamma V(S_{t+1})}_{\text{TD target}} - V(S_t)\big] \\[4pt] \delta_t &= R_{t+1} + \gamma V(S_{t+1}) - V(S_t) \qquad \text{(the TD error)} \end{aligned} \]</div>
+      <p>The difference \(\delta\), the <strong>TD error</strong>, compares two predictions of the same thing made one step apart. Its <strong>sign</strong> is what matters, and it comes back in every later part: positive means better than expected, negative worse, zero means nothing to learn.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">TD error calculator</p><p class="lab-hint">Change the numbers.</p></div>
+        <div class="controls">
+          <label class="ctl">V(S) <input class="num" type="number" step="0.1" id="te-v" value="-3"></label>
+          <label class="ctl">R <input class="num" type="number" step="0.5" id="te-r" value="-1"></label>
+          <label class="ctl">V(S′) <input class="num" type="number" step="0.1" id="te-v2" value="-1.5"></label>
+          <label class="ctl">γ <input class="num" type="number" step="0.05" id="te-g" value="0.8"></label>
+          <label class="ctl">α <input class="num" type="number" step="0.05" id="te-a" value="0.1"></label>
+        </div>
+        <div class="lab-body"><div id="te-out" class="calc"></div></div>
+      </div>
+      <h3>Example: driving home</h3>
+      <p class="prose">A classic from Sutton &amp; Barto (Example 6.1). Each evening you predict your total travel time at several points. Monte Carlo waits until you are home (43 min) and moves every prediction towards 43. TD moves each prediction towards the <em>next</em> prediction, at once: the rain gets the blame for the rain, the truck for the truck.</p>
+      <div class="lab">
+        <div class="controls"><div class="seg" id="dh-mode"><button data-v="mc" class="on">Monte Carlo</button><button data-v="td">Temporal difference</button></div></div>
+        <div class="lab-body"><div class="plot" id="dh-plot"></div></div>
+        <div class="lab-foot" id="dh-foot"></div>
+      </div>
+    </section>
+
+    <section id="three" class="chapter">
+      <h2><span class="chap">03</span>Three choices for the next action</h2>
+      <p>For action values the target needs "the value of the next step". The next <em>state</em> is given by the environment. For the next <em>action</em> there are three choices, and they give three algorithms:</p>
+      <div class="formula">\[ Q(S,A) \leftarrow Q(S,A) + \alpha\,\big[\,\text{target} - Q(S,A)\,\big] \]
+\[ \begin{aligned}
+        \text{SARSA:}&\quad \text{target} = R + \gamma\, Q(S',A') \\
+        \text{Expected SARSA:}&\quad \text{target} = R + \gamma \textstyle\sum_{a'} \pi(a'\mid S')\, Q(S',a') \\
+        \text{Q-learning:}&\quad \text{target} = R + \gamma \max_{a'} Q(S',a')
+      \end{aligned} \]</div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">One experience, three updates</p><p class="lab-hint">The agent is in (2,3) and takes right: R = −1, lands in (3,3). Edit the row of (3,3).</p></div>
+        <div class="controls">
+          <label class="ctl">Q(S,A) <input class="num" type="number" step="0.1" id="x3-q" value="-3"></label>
+          <label class="ctl">Q(S′,↑) <input class="num" type="number" step="0.1" id="x3-up" value="-2.9"></label>
+          <label class="ctl">Q(S′,↓) <input class="num" type="number" step="0.1" id="x3-down" value="-2.6"></label>
+          <label class="ctl">Q(S′,←) <input class="num" type="number" step="0.1" id="x3-left" value="-3.2"></label>
+          <label class="ctl">Q(S′,→) <input class="num" type="number" step="0.1" id="x3-right" value="-2.4"></label>
+        </div>
+        <div class="controls">
+          <label class="ctl">ε <input type="range" id="x3-eps" min="0" max="1" step="0.05" value="0.2"><output></output></label>
+          <label class="ctl">next action A′ actually chosen <select id="x3-a2"><option value="0">up</option><option value="1">down</option><option value="2" selected>left</option><option value="3">right</option></select></label>
+        </div>
+        <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean mono" id="x3-table"></table></div></div>
+        <div class="lab-foot">SARSA asks "how good was it, given what I actually did next?" Expected SARSA averages over what the policy might do. Q-learning assumes the best. With the same experience, one TD error can be positive and another negative.</div>
+      </div>
+    </section>
+
+    <section id="onoff" class="chapter">
+      <h2><span class="chap">04</span>On-policy and off-policy: the cliff</h2>
+      <p>SARSA and Expected SARSA learn the value of the policy they are <em>actually following</em>, exploration included: <strong>on-policy</strong>. Q-learning's target uses the best action, whatever the agent does, so it learns about the optimal policy directly: <strong>off-policy</strong>. The cliff (Sutton &amp; Barto, Example 6.6) makes the difference visible: −1 per step, −100 and back to the start for stepping off the cliff, ε = 0.1 throughout.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">SARSA versus Q-learning on the cliff</p><p class="lab-hint">Thick line: the greedy route. Thin line: the last episode actually walked. ✕: a fall.</p></div>
+        <div class="controls"><button class="btn" id="cl-play">Train 500 episodes</button><button class="btn ghost small" id="cl-reset">Reset</button><label class="ctl">speed <input type="range" id="cl-speed" min="1" max="50" value="20"><output></output></label></div>
+        <div class="lab-body">
+          <div class="lab-grid even">
+            <div><div class="plot" id="cl-s"></div><p class="plot-cap" id="cl-s-cap"><b>SARSA</b></p><div class="plot" id="cl-q" style="margin-top:1rem"></div><p class="plot-cap" id="cl-q-cap"><b>Q-learning</b></p></div>
+            <div><div class="plot" id="cl-curve"></div><p class="plot-cap"><b>Reward per episode</b> while learning (average of the last 20)</p></div>
+          </div>
+        </div>
+        <div class="lab-foot">Q-learning learns the shortest route, along the edge, and keeps falling off while it explores. SARSA learns the route that is safe for an agent that sometimes stumbles, and collects more reward while learning.</div>
+      </div>
+    </section>
+
+    <section id="race" class="chapter">
+      <h2><span class="chap">05</span>Sample efficiency: the race</h2>
+      <p><strong>Sample efficiency</strong> is how many episodes (or steps) a method needs to become good. All four methods run with the same ε schedule (0.9 → 0.1), γ = 0.8 and α = 0.1, averaged over many runs.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Monte Carlo, SARSA, Expected SARSA, Q-learning</p><p class="lab-hint">Pick a maze. The big one needs 22 moves; episodes stop at 60 steps.</p></div>
+        <div class="controls">
+          <div class="seg" id="rc-maze"><button data-v="small" class="on">Small maze (300 episodes)</button><button data-v="big">Big maze (600 episodes)</button></div>
+          <label class="check"><input type="checkbox" id="rc-head"> give Monte Carlo a head start (50 guided episodes)</label>
+          <button class="btn" id="rc-run">Run 20 runs each</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid"><div><div class="plot" id="rc-curve"></div><div class="legend" id="rc-legend"></div></div><div><div class="plot" id="rc-grid"></div><div class="stats" id="rc-stats" style="margin-top:1rem"></div></div></div></div>
+        <div class="lab-foot" id="rc-foot">On the small maze TD is a bit faster. On the big maze the difference is total: a random walk almost never reaches the cheese within 60 steps, so Monte Carlo has nothing to learn from. TD learns from every step: squares the agent keeps returning to become worse than squares it rarely visits, which pushes it outwards until it finds the cheese.</div>
+      </div>
+    </section>
+
+    <section id="qstep" class="chapter">
+      <h2><span class="chap">06</span>Q-learning, one step at a time</h2>
+      <p>Q-learning (Watkins, 1989) is probably the most famous algorithm in RL. Watch one episode, update by update: look at the <em>next</em> square's row, take the maximum, multiply by γ, add the reward, and move the old entry 10% of the way towards that target.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Inside the Q-table</p><p class="lab-hint">The table after some training. Yellow frame: the entry being updated.</p></div>
+        <div class="controls"><button class="btn" id="qs-step">Next step</button><button class="btn ghost" id="qs-train">Train 10 episodes</button><button class="btn ghost small" id="qs-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="qs-grid"></div><div id="qs-calc" class="calc"></div></div></div>
+      </div>
+      <p>Why the max? <strong>Bellman's principle of optimality</strong>: if a whole sequence of decisions is optimal, every decision after the first must be optimal too (full marks in an exam means full marks in every section). So the value of acting optimally now is the reward now plus the value of acting optimally from the next state:</p>
+      <div class="formula">\[ q_*(s,a) = \mathbb{E}\big[\,R_{t+1} + \gamma \max_{a'} q_*(S_{t+1}, a') \;\big|\; S_t = s,\ A_t = a\,\big] \]</div>
+      <p>Q-learning is this equation turned into an update, with one sample in place of the expectation.</p>
+    </section>
+
+    <section id="traces" class="chapter">
+      <h2><span class="chap">07</span>Eligibility traces: credit further back</h2>
+      <p>One-step TD passes news back one square per visit. An <strong>eligibility trace</strong> is a fading memory of recently visited squares: each visit adds 1, and every step all traces shrink by \(\gamma\lambda\). When a TD error arrives, <em>every</em> square is updated in proportion to its trace. λ = 0 gives back one-step TD.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Watch the trace</p><p class="lab-hint">Illustration: reward +1 only for reaching the cheese, 0 otherwise, so the only TD error comes at the end. α = 0.5, γ = 0.9.</p></div>
+        <div class="controls"><label class="ctl">λ <input type="range" id="tr-l" min="0" max="1" step="0.05" value="0.9"><output></output></label><button class="btn" id="tr-step">Next step</button><button class="btn ghost" id="tr-ep">Finish episode</button><button class="btn ghost small" id="tr-reset">Reset</button></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="tr-grid"></div><div id="tr-calc" class="calc"></div></div></div>
+        <div class="lab-foot">Orange bars: the trace e of each square. Blue: its value V. Traces change how fast credit spreads, not the final answer.</div>
+      </div>
+    </section>
+
+    <section id="model" class="chapter">
+      <h2><span class="chap">08</span>For comparison: with a world model</h2>
+      <p>Everything so far was model-free. If the agent <em>knows</em> where every action leads, it does not need to try anything: it can apply the Bellman optimality equation to every square again and again. This is <strong>value iteration</strong>. Edit the maze by clicking squares.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Value iteration, sweep by sweep</p><p class="lab-hint">\(v(s) \leftarrow \max_a \big[r + \gamma\, v(s')\big]\), γ = 0.8</p></div>
+        <div class="controls"><label class="ctl">sweeps <input type="range" id="vi-k" min="0" max="12" step="1" value="0"><output></output></label><div class="seg" id="vi-maze"><button data-v="small" class="on">Small maze</button><button data-v="big">Big maze</button></div></div>
+        <div class="lab-body"><div class="plot" id="vi-grid"></div></div>
+        <div class="lab-foot" id="vi-foot"></div>
+      </div>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">09</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="policy.html">
+        <span class="next-eyebrow">Next · Part 5</span>
+        <span class="next-title">Policy gradients and actor–critic →</span>
+        <span class="next-text">Adjust the probabilities of actions directly, with a critic to judge.</span>
+      </a>
+    </section>

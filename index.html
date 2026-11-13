@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reinforcement Lab · Learning by trial and error</title>
+  <meta name="description" content="An interactive, minimal lab for learning reinforcement learning: agents, Markov decision processes, Monte Carlo, temporal difference, Q-learning, actor–critic and the inverted pendulum.">
+  <meta name="author" content="Eng. Saeed Serwan Abdulsattar">
+  <meta property="og:title" content="Reinforcement Lab · Learning by trial and error">
+  <meta property="og:description" content="An interactive, minimal lab for learning reinforcement learning: agents, Markov decision processes, Monte Carlo, temporal difference, Q-learning, actor–critic and the inverted pendulum.">
+  <meta property="og:image" content="assets/img/favicon-512.png">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="assets/img/utb-logo.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/img/favicon-180.png">
+  <link rel="stylesheet" href="assets/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">
+    <img class="brand-logo" src="assets/img/utb-logo.svg" alt="University of Technology Bahrain logo" onerror="this.remove()">
+    <span class="brand-title">Reinforcement Lab</span>
+  </a>
+  <nav class="page-tabs" aria-label="Lessons">
+    <a href="index.html" class="active" aria-current="page">Overview</a>
+    <a href="maze.html">The maze & Monte Carlo</a>
+    <a href="td.html">Temporal difference</a>
+    <a href="policy.html">Policy gradients</a>
+    <a href="pendulum.html">Inverted pendulum</a>
+    <a href="brain.html">Brain & limits</a>
+    <a href="code-qlearning.html">Q-learning in Python</a>
+    <a href="code-pendulum.html">Pendulum in Python</a>
+  </nav>
+  <nav class="top-links">
+    <a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="toc" aria-label="Contents">
+    <p class="toc-title">Overview</p>
+    <ol>
+      <li><a href="#shoe">How would you teach a robot to tie a shoe?</a></li>
+      <li><a href="#agent">Agent and environment</a></li>
+      <li><a href="#loop">The loop: state, action, reward</a></li>
+      <li><a href="#markov">The Markov property</a></li>
+      <li><a href="#policy">The strategy: a policy</a></li>
+      <li><a href="#return">The total reward: the return</a></li>
+      <li><a href="#goal">The goal, in one line</a></li>
+      <li><a href="#quiz">Check yourself</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">CSIT843A · Lecture 5 · Reinforcement learning</p>
+      <h1>Learning by trial <em>and error.</em></h1>
+      <p class="lead">
+        In supervised learning we gave the computer the answers. In unsupervised learning we gave it data without answers.
+        In reinforcement learning we give it neither. It has to <strong>act</strong>, see what happens, and receive a single number
+        telling it how well it did. From that alone, it must work out what to do.
+      </p>
+      <div class="learn-grid">
+        <div><span class="num">01</span>Describe a task with agent, environment, states, actions and rewards</div>
+        <div><span class="num">02</span>Compute returns and explain the discount factor γ</div>
+        <div><span class="num">03</span>Learn a Q-table by Monte Carlo and by temporal difference</div>
+        <div><span class="num">04</span>Tell SARSA, Expected SARSA and Q-learning apart</div>
+        <div><span class="num">05</span>Explain policy gradients and actor–critic</div>
+        <div><span class="num">06</span>Follow how a pole learns to balance from one failure signal</div>
+      </div>
+    </section>
+
+    <section id="shoe" class="chapter">
+      <h2><span class="chap">01</span>How would you teach a robot to tie a shoe?</h2>
+      <p>A computer does exactly what it is told. That is perfect for adding two large numbers, and hopeless for tying a shoe, folding a T-shirt or walking: nobody can write down how every joint should move and what every force will be. So we do what we do with a child or a dog. We let it <strong>try</strong>, and we tell it afterwards how well it went. Good outcomes make the behaviour more likely; bad ones make it less likely.</p>
+      <div class="table-wrap"><table class="clean">
+        <thead><tr><th></th><th>Supervised</th><th>Unsupervised</th><th>Reinforcement</th></tr></thead>
+        <tbody>
+          <tr><td><strong>The data</strong></td><td>Inputs and correct answers</td><td>Inputs only</td><td>Collected by the learner itself, by acting</td></tr>
+          <tr><td><strong>Feedback</strong></td><td>"The answer was 7"</td><td>None</td><td>"That was worth −1": a score, never the answer</td></tr>
+          <tr><td><strong>Goal</strong></td><td>Predict the answer</td><td>Find structure</td><td>Choose actions that collect the most reward</td></tr>
+          <tr><td><strong>Lecture</strong></td><td><a href="https://saeedserwan.github.io/regression/">Lecture 3</a></td><td><a href="https://saeedserwan.github.io/unsupervised/">Lecture 4</a></td><td>Lecture 5: this site</td></tr>
+        </tbody>
+      </table></div>
+      <div class="cards">
+        <div class="card"><span class="n">2013</span><h4>Atari games</h4><p>A program learns to play video games from the screen and the score alone.</p></div>
+        <div class="card"><span class="n">2016</span><h4>Go</h4><p>AlphaGo beats one of the best human players.</p></div>
+        <div class="card"><span class="n">2019</span><h4>A robot hand</h4><p>Learns to solve a Rubik's cube.</p></div>
+        <div class="card"><span class="n">2024</span><h4>Turing Award</h4><p>Andrew Barto and Richard Sutton, for the foundations of this field. Their ideas from the 1980s are on this site.</p></div>
+      </div>
+    </section>
+
+    <section id="agent" class="chapter">
+      <h2><span class="chap">02</span>Agent and environment</h2>
+      <p>Every RL problem has an <strong>agent</strong> and an <strong>environment</strong>. The agent is whatever you can control <em>directly</em>; the environment is everything you cannot control directly but are trying to influence through the agent. The agent sends <strong>actions</strong>; the environment sends back <strong>states</strong>. Both must be numbers.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Where is the boundary?</p><p class="lab-hint">Learning to drive, starting from zero. The same person, three different agents.</p></div>
+        <div class="controls">
+          <div class="seg" id="bnd-mode">
+            <button data-v="A" class="on">A · move my limbs</button>
+            <button data-v="B">B · operate the car</button>
+            <button data-v="C">C · drive on the road</button>
+          </div>
+        </div>
+        <div class="lab-body"><div class="plot" id="bnd-svg"></div></div>
+        <div class="lab-foot" id="bnd-foot"></div>
+      </div>
+      <h3>Try it: draw the boundary</h3>
+      <p class="prose">For each system decide the agent, the environment, the actions and the state. Then reveal one sensible answer.</p>
+      <div class="cards" id="ex1"></div>
+      <div class="callout tip"><span class="label">Choose the framing</span><p>The boundary, and even the size of one action, is a choice. Closing your fist: one action, or five, one per finger? Choose the framing that gives the problem the clearest structure.</p></div>
+    </section>
+
+    <section id="loop" class="chapter">
+      <h2><span class="chap">03</span>The loop: state, action, reward</h2>
+      <p>One more signal completes the picture: the <strong>reward</strong>, a single number after every action. Positive is good, negative is bad. It <em>evaluates</em> what was done; it never says what should have been done instead. The result is a sequence in discrete time steps:</p>
+      <div class="formula">\[ S_0,\ A_0,\ R_1,\quad S_1,\ A_1,\ R_2,\quad S_2,\ A_2,\ R_3,\ \dots \]</div>
+      <p>This is a <strong>Markov decision process</strong> (MDP). If it ends, at the target or after a time limit, the sequence is called an <strong>episode</strong>. Below, <em>you</em> are the agent in the small maze of this course: −1 for every step, 0 for entering the cheese square, at most 20 steps.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">You are the agent</p><p class="lab-hint">Use the buttons or the arrow keys. Switch to the agent's view: that is all a learning program ever sees.</p></div>
+        <div class="controls">
+          <div class="btn-row" id="me-keys">
+            <button class="btn ghost" data-a="0">0 · up</button><button class="btn ghost" data-a="1">1 · down</button><button class="btn ghost" data-a="2">2 · left</button><button class="btn ghost" data-a="3">3 · right</button>
+          </div>
+          <div class="seg" id="me-view"><button data-v="ours" class="on">Our view</button><button data-v="agent">The agent's view</button></div>
+          <button class="btn ghost small" id="me-random">Random action</button>
+          <button class="btn ghost small" id="me-reset">New episode</button>
+        </div>
+        <div class="lab-body">
+          <div class="lab-grid">
+            <div><div class="plot" id="me-grid"></div><div id="me-numbers" class="agent-view" hidden></div></div>
+            <div>
+              <div class="stats" id="me-stats"></div>
+              <p class="kicker">The stream the agent receives</p>
+              <div class="stream" id="me-stream"></div>
+            </div>
+          </div>
+        </div>
+        <div class="lab-foot" id="me-foot"></div>
+      </div>
+      <div class="callout"><span class="label">Notation</span><p>The reward that follows action \(A_t\) is written \(R_{t+1}\): it arrives together with the next state. Some sources, including the video this course follows, write \(r_t\). Nothing changes except the index.</p></div>
+    </section>
+
+    <section id="markov" class="chapter">
+      <h2><span class="chap">04</span>The Markov property</h2>
+      <p>Ideally, the next state depends only on the current state and action, not on anything earlier. Then the state contains <strong>enough information</strong> to predict what comes next. The agent does not need to know the physics; the information just has to be there.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">A robot that catches a ball</p><p class="lab-hint">Move through time. Where will the ball be one step later?</p></div>
+        <div class="controls">
+          <label class="ctl">time <input type="range" id="mk-t" min="1" max="19" step="1" value="6"><output></output></label>
+          <div class="seg" id="mk-state"><button data-v="pos" class="on">State = position</button><button data-v="vel">State = position + velocity</button></div>
+        </div>
+        <div class="lab-body"><div class="plot" id="mk-plot"></div></div>
+        <div class="lab-foot" id="mk-foot"></div>
+      </div>
+      <p>The same reason explains why the pendulum of <a href="pendulum.html">Part 6</a> has four numbers in its state, not two. The MDP is not perfect: real situations are not always Markov, it uses one fixed time step, and squeezes all feedback into a single number. It is still the best framework we have, and nearly all of RL is built on it.</p>
+    </section>
+
+    <section id="policy" class="chapter">
+      <h2><span class="chap">05</span>The strategy: a policy</h2>
+      <p>The agent's strategy is the <strong>policy</strong> \(\pi(a \mid s)\): the probability of choosing action \(a\) in state \(s\). Think of it as a function from states to actions, with some randomness allowed. Why randomness? A learner that always does the same thing can never discover that something else would have been better.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">One state, four actions</p><p class="lab-hint">Pick a policy, then let it choose 100 times.</p></div>
+        <div class="controls">
+          <div class="seg" id="pol-mode"><button data-v="rand" class="on">Before learning</button><button data-v="mostly">After learning</button><button data-v="greedy">Always the best</button></div>
+          <button class="btn" id="pol-sample">Choose 100 actions</button>
+        </div>
+        <div class="lab-body"><div class="lab-grid even"><div><div class="plot" id="pol-p"></div><p class="plot-cap"><b>π(a | s)</b>: the probabilities</p></div><div><div class="plot" id="pol-c"></div><p class="plot-cap"><b>What it actually did</b> in 100 tries</p></div></div></div>
+      </div>
+    </section>
+
+    <section id="return" class="chapter">
+      <h2><span class="chap">06</span>The total reward: the return</h2>
+      <p>The agent wants a large <strong>total</strong> reward, not just a large next reward: what pays most now can cost you later. The <strong>return</strong> adds up all future rewards, each multiplied by one more factor of the <strong>discount factor</strong> \(\gamma\) between 0 and 1:</p>
+      <div class="formula">\[ G_t = R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \dots \qquad\Longrightarrow\qquad G_t = R_{t+1} + \gamma\, G_{t+1} \]</div>
+      <p>The second form is the one we use again and again: the return now is the next reward plus γ times the return one step later. It also means returns are easiest to compute <strong>backwards</strong>, from the end.</p>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">What γ does</p><p class="lab-hint">The weight of a reward k steps in the future is γᵏ.</p></div>
+        <div class="controls"><label class="ctl">γ <input type="range" id="g-gamma" min="0" max="0.99" step="0.01" value="0.8"><output></output></label></div>
+        <div class="lab-body"><div class="lab-grid"><div class="plot" id="g-plot"></div><div class="stats" id="g-stats"></div></div></div>
+      </div>
+      <div class="lab">
+        <div class="lab-head"><p class="lab-title">Returns, backwards</p><p class="lab-hint">Edit the rewards of an episode (comma-separated). The table works from the end.</p></div>
+        <div class="controls">
+          <label class="ctl">rewards <input type="text" id="ret-r" value="-1, -1, -1, -1, 0" class="txt"></label>
+          <label class="ctl">γ <input type="range" id="ret-g" min="0" max="1" step="0.05" value="0.8"><output></output></label>
+        </div>
+        <div class="lab-body"><div class="table-wrap" style="margin:0"><table class="clean mono" id="ret-table"></table></div></div>
+      </div>
+    </section>
+
+    <section id="goal" class="chapter">
+      <h2><span class="chap">07</span>The goal, in one line</h2>
+      <p class="big-line">Find the <strong>policy</strong> that maximises the <strong>return</strong>.</p>
+      <p>Every method on this site is a way of doing that. They differ only in <em>how</em>. The map below is the route through the course.</p>
+      <div class="cards">
+        <a class="card" href="maze.html"><span class="n">part 3</span><h4>The maze & Monte Carlo →</h4><p>World models, sampling, Q-tables, exploration. Learn by averaging whole episodes.</p></a>
+        <a class="card" href="td.html"><span class="n">part 4</span><h4>Temporal difference →</h4><p>Judge each step against the next estimate: SARSA, Q-learning, traces, the cliff.</p></a>
+        <a class="card" href="policy.html"><span class="n">part 5</span><h4>Policy gradients →</h4><p>Adjust probabilities directly, with a critic to judge: actor–critic.</p></a>
+        <a class="card" href="pendulum.html"><span class="n">part 6</span><h4>Inverted pendulum →</h4><p>Balance a pole yourself, then watch a 1983 learner find out which push was wrong.</p></a>
+        <a class="card" href="brain.html"><span class="n">parts 7–8</span><h4>Brain & limits →</h4><p>Dopamine behaves like the TD error. What still does not work well.</p></a>
+        <a class="card" href="code-qlearning.html"><span class="n">practice</span><h4>In Python →</h4><p>Q-learning on the maze and the pendulum learner, line by line.</p></a>
+      </div>
+    </section>
+
+    <section id="quiz" class="chapter">
+      <h2><span class="chap">08</span>Check yourself</h2>
+      <div class="quiz" id="quiz-box"></div>
+      <p class="quiz-score" id="quiz-box-score"></p>
+      <a class="next-card" href="maze.html">
+        <span class="next-eyebrow">Start part 3</span>
+        <span class="next-title">The maze and Monte Carlo →</span>
+        <span class="next-text">From meaningless numbers to a policy that finds the cheese.</span>
+      </a>
+    </section>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <img class="footer-logo" src="assets/img/utb-logo.svg" alt="" onerror="this.remove()">
+    <div>
+      <p><strong>Reinforcement Lab</strong>: an open, interactive companion to <em>CSIT843A Lecture 5: Reinforcement Learning</em>.</p>
+      <p>Created by <strong>Eng. Saeed Serwan Abdulsattar</strong>, College of Computer Studies, University of Technology Bahrain.</p>
+      <p><a href="https://github.com/SaeedSerwan/reinforcementlearning" target="_blank" rel="noopener">Source on GitHub</a> · MIT License</p>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/vendor/katex/katex.min.js"></script>
+<script src="assets/vendor/katex/auto-render.min.js"></script>
+<script src="assets/js/lib.js"></script>
+<script src="assets/js/overview.js"></script>
+</body>
+</html>
