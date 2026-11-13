@@ -61,6 +61,7 @@ def build(fname, toc_title, title, js, desc):
 <script src="assets/vendor/katex/katex.min.js"></script>
 <script src="assets/vendor/katex/auto-render.min.js"></script>
 <script src="assets/js/lib.js"></script>
+<script src="assets/js/tips.js"></script>
 <script src="assets/js/{js}"></script>
 </body>
 </html>

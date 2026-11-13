@@ -242,8 +242,10 @@
     if (window.renderMathInElement) renderMathInElement(document.body, {
       delimiters: [{ left: '$$', right: '$$', display: true }, { left: '\\(', right: '\\)', display: false }, { left: '\\[', right: '\\]', display: true }],
       ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option', 'canvas'],
-      throwOnError: false,
+      throwOnError: false, strict: 'ignore', trust: (c) => c.command === '\\htmlData',
+      preProcess: (m) => (UL.texTips ? UL.texTips(m) : m),
     });
+    if (UL.tips) UL.tips();
   };
   UL.tex = function (el, src, display = false) {
     if (window.katex) katex.render(src, el, { throwOnError: false, displayMode: display }); else el.textContent = src;

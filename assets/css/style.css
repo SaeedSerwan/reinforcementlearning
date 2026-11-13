@@ -377,3 +377,22 @@ kbd { font: .78rem var(--mono); border: 1px solid var(--line-2); border-bottom-w
 .takeaway b { font-weight: 600; }
 .cards.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 900px) { .cards.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------------------------------------------------------------- hover explanations */
+.kw { border-bottom: 1px dotted #8a94a6; cursor: help; transition: background .15s; }
+.kw:hover, .kw.tip-on, .kw:focus { background: #eef3fb; border-bottom-color: #2a78d6; outline: none; }
+.katex [data-tip] { cursor: help; border-radius: 3px; transition: background .12s, box-shadow .12s; }
+.katex [data-tip]:hover, .katex [data-tip].tip-on { background: #fff1c9; box-shadow: 0 0 0 2px #fff1c9; }
+.katex-display:has([data-tip]) { cursor: help; border-radius: 6px; transition: background .15s; }
+.katex-display.tip-on { background: #fafaf7; }
+.tipbox { position: fixed; z-index: 1000; max-width: 360px; padding: 12px 14px 10px; background: #fff; color: #1d1f24; border: 1px solid #dcdcd6; border-radius: 10px; box-shadow: 0 10px 30px rgba(20, 25, 35, .14), 0 2px 6px rgba(20, 25, 35, .06); font: 13.5px/1.5 "IBM Plex Sans", system-ui, sans-serif; opacity: 0; transform: translateY(4px); pointer-events: none; transition: opacity .14s, transform .14s; }
+.tipbox.on { opacity: 1; transform: none; pointer-events: auto; }
+.tipbox.wide { max-width: 520px; }
+.tipbox { max-height: calc(100vh - 16px); overflow: auto; }
+.tipbox p { margin: 4px 0 6px; }
+.tipbox .tip-k { font: 600 10px/1.4 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; color: #8a94a6; margin-top: 2px; }
+.tipbox .tip-h { font-weight: 600; font-size: 15px; margin-top: 2px; }
+.tipbox .tip-parts { list-style: none; margin: 6px 0 4px; padding: 0; display: grid; gap: 6px; }
+.tipbox .tip-parts li { display: grid; grid-template-columns: minmax(64px, auto) 1fr; gap: 10px; align-items: baseline; padding-top: 6px; border-top: 1px solid #efefea; }
+.tipbox .tip-sym { white-space: nowrap; color: #1d4f9c; }
+.tipbox .tip-foot { font-size: 11.5px; color: #8a94a6; margin-top: 6px; }

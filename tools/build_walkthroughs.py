@@ -314,6 +314,7 @@ def build_page(lesson, nb, code_index):
 <script src="assets/vendor/katex/katex.min.js"></script>
 <script src="assets/vendor/katex/auto-render.min.js"></script>
 <script src="assets/js/lib.js"></script>
+<script src="assets/js/tips.js"></script>
 <script src="assets/js/walkthrough.js"></script>
 </body>
 </html>

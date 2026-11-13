@@ -55,8 +55,10 @@
       delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
       ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code', 'option'],
       ignoredClasses: ['nb-in', 'nb-out'],
-      throwOnError: false,
+      throwOnError: false, strict: 'ignore', trust: (c) => c.command === '\\htmlData',
+      preProcess: (m) => (window.UL.texTips ? window.UL.texTips(m) : m),
     });
   }
+  if (window.UL.tips) window.UL.tips();
   tocSpy();
 })();
